@@ -20,17 +20,12 @@ export async function sendMessage(chat: Chat, message: string): Promise<string> 
     return response.text;
   } catch (error: any) {
     console.error("Error sending message to Gemini:", error);
-    return `I'm sorry, I encountered an error: ${error.message || 'An unknown error occurred.'}`;
-  }
-}
-
-export async function sendMessageStream(chat: Chat, message: string) {
-  try {
-    const response = await chat.sendMessageStream({ message });
-    return response;
-  } catch (error) {
-    console.error("Error sending streaming message to Gemini:", error);
-    throw error;
+    // Construct a JSON string representing the error to maintain the expected response format.
+    return JSON.stringify({
+        prose: `I'm sorry, I encountered an error: ${error.message || 'An unknown error occurred.'}`,
+        tool_calls: [],
+        actions: []
+    });
   }
 }
 
