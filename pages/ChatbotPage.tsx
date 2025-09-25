@@ -195,9 +195,8 @@ const ChatbotPage: React.FC = () => {
       
       const isStartingANewConversation = isNewChat;
 
-      if (isNewChat) {
+      if (isStartingANewConversation) {
           setIsNewChat(false);
-          // If starting a new general chat, clear its previous history before saving the new one
           if (!activeProjectId) {
               localStorage.removeItem('chatHistory_general');
           }
@@ -212,7 +211,14 @@ const ChatbotPage: React.FC = () => {
           replyTo: replyToMessage ? { id: replyToMessage.id, author: replyToMessage.author === MessageAuthor.USER ? "you" : "Dr. Rhesus", content: replyToMessage.rawContent || ''} : undefined
       };
       
-      setMessages(prev => [...prev, newUserMessage]);
+      if (isStartingANewConversation) {
+        const greeting = GREETINGS[0];
+        const greetingMsg: Message = { id: 'initial', author: MessageAuthor.RHESUS, content: <MarkdownRenderer content={greeting}/>, rawContent: greeting };
+        setMessages([greetingMsg, newUserMessage]);
+      } else {
+        setMessages(prev => [...prev, newUserMessage]);
+      }
+
       setIsLoading(true);
       setInput('');
       setReplyingTo(null);
@@ -261,18 +267,6 @@ const ChatbotPage: React.FC = () => {
       }
   }, [chat, setApiStatus, parseAndRenderResponse, activeProjectId, activeProjectName, recentChats, setRecentChats, isNewChat, setIsNewChat]);
 
-  const handleNewChat = useCallback(() => {
-    try {
-        const greeting = GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
-        setMessages([{ id: 'initial', author: MessageAuthor.RHESUS, content: <MarkdownRenderer content={greeting}/>, rawContent: greeting }]);
-        setReplyingTo(null);
-    } catch (error) {
-        console.error("Failed to start new chat:", error);
-        const errorMsg = { id: `error-${Date.now()}`, author: MessageAuthor.SYSTEM, content: "Sorry, an error occurred while starting a new chat.", rawContent: "Sorry, an error occurred while starting a new chat." };
-        setMessages(prev => [...prev, errorMsg]);
-    }
-  }, []);
-
   const handleSendMessageRef = useRef(handleSendMessage);
   useEffect(() => { handleSendMessageRef.current = handleSendMessage; }, [handleSendMessage]);
 
@@ -283,26 +277,25 @@ const ChatbotPage: React.FC = () => {
     setChat(createChatSession());
 
     if (isNewChat) {
-        handleNewChat();
+        setMessages([]); // Start with an empty screen for the "Welcome" component
         return;
     }
 
     const stored = localStorage.getItem(historyKey);
-    let hasHistory = false;
     if (stored) {
         try {
             const storedMessages = JSON.parse(stored);
             if (storedMessages.length > 0) {
                 setMessages(rehydrateMessages(storedMessages));
-                hasHistory = true;
+            } else {
+                setMessages([]); // Ensure it's empty if stored history is empty
             }
         } catch (e) {
             localStorage.removeItem(historyKey);
+            setMessages([]);
         }
-    }
-    
-    if (!hasHistory) {
-        handleNewChat();
+    } else {
+        setMessages([]); // No history, so start empty
     }
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -327,21 +320,21 @@ const ChatbotPage: React.FC = () => {
         };
         recognitionRef.current = recognition;
     }
-  }, [historyKey, rehydrateMessages, handleNewChat, isNewChat]);
+  }, [historyKey, rehydrateMessages, isNewChat]);
 
   useEffect(() => {
     const initialQuery = sessionStorage.getItem('initialQuery');
     if (initialQuery && chat) {
         sessionStorage.removeItem('initialQuery');
-        setIsNewChat(false); // We are starting a specific query
-        setMessages([]);
+        setIsNewChat(true); // Start as a new chat
+        setMessages([]); // Clear any potential loaded messages
         handleSendMessage(initialQuery);
     }
   }, [chat, handleSendMessage, setIsNewChat]);
 
   useEffect(() => {
-    // Don't save if it's a new chat or if there's only the initial greeting
-    if (isNewChat || messages.length <= 1) return;
+    // Don't save if it's a new chat with no messages yet
+    if (isNewChat || messages.length === 0) return;
     
     const serializableMessages = messages.map(({ id, author, rawContent, actions, replyTo }) => ({ id, author, rawContent, actions, replyTo }));
     localStorage.setItem(historyKey, JSON.stringify(serializableMessages));
