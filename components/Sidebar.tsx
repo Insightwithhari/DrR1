@@ -60,7 +60,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentPage, onToggl
     window.location.hash = '#chatbot';
   };
 
-  const navItemsPrimary: { page: Page; label: string; icon: React.ReactNode }[] = [
+  const navItemsPrimary: { page: Page; label: string; icon: React.ReactNode, customOnClick?: () => void }[] = [
     { page: 'home', label: 'Home', icon: <HomeIcon className="w-5 h-5" /> },
     { page: 'chatbot', label: 'Chatbot', icon: <ChatBubbleIcon className="w-5 h-5" /> },
     { page: 'projects', label: 'Projects', icon: <ClipboardListIcon className="w-5 h-5" /> },
@@ -109,7 +109,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentPage, onToggl
                     isPrimary={true}
                     isActive={currentPage === item.page}
                     onClose={onClose}
-                    customOnClick={item.page === 'chatbot' ? startNewChat : undefined}
+                    customOnClick={item.customOnClick}
                     isOpen={isOpen}
                 />
             ))}
