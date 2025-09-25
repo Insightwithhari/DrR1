@@ -201,7 +201,7 @@ const SettingsPage: React.FC = () => {
                     </div>
                 </SettingsCard>
                 <SettingsCard title="Data Management">
-                    <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 rounded-r-lg mb-4 text-sm text-yellow-700 dark:text-yellow-300">
+                    <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 rounded-r-lg mb-4 text-sm text-yellow-800 dark:text-yellow-300">
                         All data is stored locally. Export backups regularly.
                     </div>
                     <div className="space-y-3">
