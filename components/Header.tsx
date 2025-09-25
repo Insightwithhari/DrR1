@@ -1,5 +1,5 @@
 import React from 'react';
-import { MenuIcon, CommandLineIcon, ShareIcon, ChevronLeftIcon } from './icons';
+import { MenuIcon, CommandLineIcon, FilePlusIcon, ChevronLeftIcon } from './icons';
 import type { Page } from '../types';
 import { useAppContext } from '../App';
 import ApiStatusIndicator from './ApiStatusIndicator';
@@ -8,7 +8,6 @@ interface HeaderProps {
     onToggleSidebar: () => void;
     currentPage: Page;
     onToggleCommandPalette: () => void;
-    onShareChat?: () => void;
 }
 
 const pageTitles: Record<Page, string> = {
@@ -23,8 +22,8 @@ const pageTitles: Record<Page, string> = {
     snapshot: "Research Snapshot"
 };
 
-const Header: React.FC<HeaderProps> = ({ onToggleSidebar, currentPage, onToggleCommandPalette, onShareChat }) => {
-    const { apiStatus, activeProjectName, setActiveProjectId } = useAppContext();
+const Header: React.FC<HeaderProps> = ({ onToggleSidebar, currentPage, onToggleCommandPalette }) => {
+    const { apiStatus, activeProjectName, setActiveProjectId, startNewChat } = useAppContext();
     const title = pageTitles[currentPage] || "The Dream Lab";
 
     const renderTitle = () => {
@@ -60,13 +59,13 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, currentPage, onToggleC
             {renderTitle()}
 
             <div className="flex items-center gap-1">
-                {currentPage === 'chatbot' && onShareChat && (
+                {currentPage === 'chatbot' && (
                     <button
-                        onClick={onShareChat}
+                        onClick={startNewChat}
                         className="p-2 rounded-full hover:bg-[var(--input-background-color)] transition-colors"
-                        aria-label="Share this chat session"
+                        aria-label="Start a new chat"
                     >
-                        <ShareIcon className="w-6 h-6 text-[var(--muted-foreground-color)]" />
+                        <FilePlusIcon className="w-6 h-6 text-[var(--muted-foreground-color)]" />
                     </button>
                 )}
                 <button 
