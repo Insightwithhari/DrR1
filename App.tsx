@@ -14,10 +14,9 @@ import LoginPage from './pages/LoginPage';
 import SnapshotPage from './pages/SnapshotPage';
 import CommandPalette from './components/CommandPalette';
 import DrRhesusPopup from './components/DrRhesusPopup';
-import TourGuide from './components/TourGuide';
 import { RhesusIcon } from './components/icons';
 
-import { AVATAR_OPTIONS, TOUR_STEPS } from './constants';
+import { AVATAR_OPTIONS } from './constants';
 import { Page, Theme, Project, Pipeline, AccentColor, BackgroundColor, Snapshot, ContentType, ApiStatus, MessageAuthor, Message, RecentChat, AppContextType } from './types';
 import { THEME_CONFIG } from './theme';
 
@@ -44,7 +43,6 @@ const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>('home');
   const [isCommandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [isRhesusPopupOpen, setRhesusPopupOpen] = useState(false);
-  const [isTourActive, setIsTourActive] = useState(false);
   
   // --- Global State ---
   const [theme, setThemeState] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'light');
@@ -53,7 +51,6 @@ const App: React.FC = () => {
   const [userName, setUserNameState] = useState<string>(() => localStorage.getItem('userName') || 'Scientist');
   const [userTitle, setUserTitleState] = useState<string>(() => localStorage.getItem('userTitle') || 'Bioinformatics Researcher');
   const [avatar, setAvatarState] = useState<string>(() => localStorage.getItem('avatar') || AVATAR_OPTIONS[0]);
-  const [tourCompleted, setTourCompleted] = useState<boolean>(() => !!localStorage.getItem('tourCompleted'));
   const [projects, setProjects] = useState<Project[]>(() => {
     try {
       const stored = localStorage.getItem('projects');
@@ -102,19 +99,6 @@ const App: React.FC = () => {
   const setUserName = (newName: string) => { setUserNameState(newName); localStorage.setItem('userName', newName); };
   const setUserTitle = (newTitle: string) => { setUserTitleState(newTitle); localStorage.setItem('userTitle', newTitle); };
   const setAvatar = (newAvatar: string) => { setAvatarState(newAvatar); localStorage.setItem('avatar', newAvatar); };
-
-  const startTour = () => {
-    localStorage.removeItem('tourCompleted'); // Allow re-taking the tour
-    setIsTourActive(true);
-    setCurrentPage('home');
-    window.location.hash = '#home';
-  };
-
-  const endTour = () => {
-    localStorage.setItem('tourCompleted', 'true');
-    setTourCompleted(true);
-    setIsTourActive(false);
-  };
 
   const logout = () => {
     setIsAuthenticated(false);
@@ -181,21 +165,12 @@ const App: React.FC = () => {
     const handleHashChange = () => {
       const hash = window.location.hash.substring(1);
       const page = hash.split('/')[0] as Page || 'home';
-      // Do not change page if tour is active, tour will handle it
-      if (!isTourActive) {
-          setCurrentPage(page);
-      }
+      setCurrentPage(page);
     };
     window.addEventListener('hashchange', handleHashChange);
     handleHashChange(); // Initial load
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [isTourActive]);
-
-  useEffect(() => {
-    if (isAuthenticated && !tourCompleted && !isTourActive) {
-      setTimeout(() => setIsTourActive(true), 500);
-    }
-  }, [isAuthenticated, tourCompleted, isTourActive]);
+  }, []);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -288,11 +263,10 @@ const App: React.FC = () => {
     userName, setUserName, userTitle, setUserTitle, avatar, setAvatar,
     projects, setProjects, pipelines, setPipelines, logout, apiStatus, setApiStatus,
     activeProjectId, setActiveProjectId, activeProjectName,
-    recentChats, setRecentChats, startNewChat,
-    tourCompleted, startTour
+    recentChats, setRecentChats, startNewChat
   }), [
     theme, accentColor, backgroundColor, userName, userTitle, avatar, projects,
-    pipelines, apiStatus, activeProjectId, activeProjectName, recentChats, tourCompleted
+    pipelines, apiStatus, activeProjectId, activeProjectName, recentChats
   ]);
 
   const fabVisible = currentPage !== 'snapshot' && currentPage !== 'chatbot';
@@ -312,7 +286,6 @@ const App: React.FC = () => {
         </main>
         <BottomNavBar currentPage={currentPage} />
         <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
-        <TourGuide isActive={isTourActive} onClose={endTour} steps={TOUR_STEPS} setCurrentPage={setCurrentPage} />
         
         <button
           onClick={() => setRhesusPopupOpen(true)}
