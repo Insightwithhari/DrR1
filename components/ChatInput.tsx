@@ -155,7 +155,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
                     )}
                 </div>
             </form>
-             <p className="text-xs text-center text-[var(--muted-foreground-color)] mt-2">Dr. Rhesus may display inaccurate info. Consider verifying important information.</p>
         </div>
     </div>
   );
