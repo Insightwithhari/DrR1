@@ -63,6 +63,8 @@ const App: React.FC = () => {
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [apiStatus, setApiStatus] = useState<ApiStatus>('idle');
   const [recentChats, setRecentChats] = useState<RecentChat[]>([]);
+  const [isNewChat, setIsNewChat] = useState<boolean>(true);
+
   const [pipelines, setPipelines] = useState<Pipeline[]>(() => {
     const storedPipelines = localStorage.getItem('pipelines');
     if (storedPipelines) {
@@ -107,8 +109,7 @@ const App: React.FC = () => {
 
   const startNewChat = () => {
     setActiveProjectId(null);
-    localStorage.removeItem('chatHistory_general');
-    setRecentChats(prev => prev.filter(c => c.id !== 'general'));
+    setIsNewChat(true);
     window.location.hash = '#chatbot';
   };
 
@@ -120,47 +121,6 @@ const App: React.FC = () => {
     setIsAuthenticated(true);
   };
   
-  const handleShareChat = (chatMessages: Message[]) => {
-      // Filter out system messages for a cleaner snapshot
-      const filteredMessages = chatMessages.filter(msg => msg.author !== MessageAuthor.SYSTEM);
-
-      const id = `snap-${Date.now()}`;
-      const snapshot: Snapshot = {
-          id,
-          createdAt: new Date().toISOString(),
-          contentBlock: {
-              id: `cb-${id}`,
-              type: ContentType.CHAT_SESSION,
-              data: {
-                  messages: filteredMessages,
-                  userName,
-                  avatar
-              }
-          }
-      };
-
-      localStorage.setItem(`snapshot_${id}`, JSON.stringify(snapshot));
-      const url = `${window.location.origin}${window.location.pathname}#snapshot/${id}`;
-      navigator.clipboard.writeText(url);
-      // The ChatbotPage component will show a tooltip.
-  };
-  
-  const handleShareChatFromHeader = () => {
-      const historyKey = activeProjectId ? `chatHistory_${activeProjectId}` : 'chatHistory_general';
-      try {
-          const chatHistory = JSON.parse(localStorage.getItem(historyKey) || '[]');
-          if (chatHistory.length > 0) {
-              handleShareChat(chatHistory);
-          } else {
-              alert("There is no conversation to share.");
-          }
-      } catch (e) {
-          console.error("Could not parse chat history for sharing:", e);
-          alert("An error occurred while trying to share the chat.");
-      }
-  };
-
-
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.substring(1);
@@ -263,10 +223,11 @@ const App: React.FC = () => {
     userName, setUserName, userTitle, setUserTitle, avatar, setAvatar,
     projects, setProjects, pipelines, setPipelines, logout, apiStatus, setApiStatus,
     activeProjectId, setActiveProjectId, activeProjectName,
-    recentChats, setRecentChats, startNewChat
+    recentChats, setRecentChats, startNewChat,
+    isNewChat, setIsNewChat
   }), [
     theme, accentColor, backgroundColor, userName, userTitle, avatar, projects,
-    pipelines, apiStatus, activeProjectId, activeProjectName, recentChats
+    pipelines, apiStatus, activeProjectId, activeProjectName, recentChats, isNewChat
   ]);
 
   const fabVisible = currentPage !== 'snapshot' && currentPage !== 'chatbot';
@@ -278,7 +239,6 @@ const App: React.FC = () => {
           onToggleSidebar={() => setSidebarOpen(true)} 
           currentPage={currentPage}
           onToggleCommandPalette={() => setCommandPaletteOpen(true)}
-          onShareChat={handleShareChatFromHeader}
         />
         <Sidebar isOpen={isSidebarOpen} onClose={() => setSidebarOpen(false)} currentPage={currentPage} onToggleCommandPalette={() => setCommandPaletteOpen(true)} />
         <main className="flex-grow overflow-y-auto">
