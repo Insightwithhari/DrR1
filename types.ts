@@ -7,15 +7,6 @@ export type AccentColor = 'teal' | 'rose' | 'sky' | 'violet';
 export type BackgroundColor = 'slate' | 'gray' | 'stone' | 'zinc' | 'neutral';
 export type ApiStatus = 'idle' | 'healthy' | 'error';
 
-// Tour Guide Types
-export interface TourStep {
-  selector: string;
-  title: string;
-  content: string;
-  page: Page;
-  position?: 'top' | 'bottom' | 'left' | 'right';
-}
-
 // Chatbot Types
 export enum MessageAuthor {
   USER = 'user',
@@ -94,6 +85,16 @@ export interface Snapshot {
     contentBlock: ContentBlock;
 }
 
+// FIX: Added missing TourStep interface
+// Tour Guide Types
+export interface TourStep {
+  selector: string;
+  page: Page;
+  title: string;
+  content: string;
+  position?: 'top' | 'bottom' | 'left' | 'right';
+}
+
 // AI Response Types
 export interface ToolCall {
   type: ContentType;
@@ -133,6 +134,4 @@ export interface AppContextType {
   recentChats: RecentChat[];
   setRecentChats: React.Dispatch<React.SetStateAction<RecentChat[]>>;
   startNewChat: () => void;
-  tourCompleted: boolean;
-  startTour: () => void;
 }
