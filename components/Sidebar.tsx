@@ -20,7 +20,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentPage, onToggl
     window.location.hash = '#chatbot';
   };
 
-  const NavLink: React.FC<{ page: Page; label: string; delay: number; icon: React.ReactNode; isPrimary: boolean, id?: string }> = ({ page, label, delay, icon, isPrimary, id }) => {
+  const NavLink: React.FC<{ page: Page; label: string; delay: number; icon: React.ReactNode; isPrimary: boolean }> = ({ page, label, delay, icon, isPrimary }) => {
     const isActive = currentPage === page;
     
     const activeClasses = isPrimary 
@@ -39,7 +39,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentPage, onToggl
         style={{ transitionDelay: `${isOpen ? delay : 0}ms`}}
       >
         <a
-          id={id}
           href={`#${page}`}
           onClick={onClose}
           className={`w-full text-left block transition-all duration-300 flex items-center gap-3 rounded-r-md ${padding} ${textStyle} ${isActive ? activeClasses : inactiveClasses}`}
@@ -51,11 +50,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentPage, onToggl
     );
   };
 
-  const navItemsPrimary: { page: Page; label: string; icon: React.ReactNode, id?: string }[] = [
+  const navItemsPrimary: { page: Page; label: string; icon: React.ReactNode }[] = [
     { page: 'home', label: 'Home', icon: <HomeIcon className="w-5 h-5" /> },
-    { page: 'chatbot', label: 'Chatbot', icon: <ChatBubbleIcon className="w-5 h-5" />, id: 'chatbot-link' },
-    { page: 'projects', label: 'Projects', icon: <ClipboardListIcon className="w-5 h-5" />, id: 'projects-link' },
-    { page: 'settings', label: 'Settings', icon: <SettingsIcon className="w-5 h-5" />, id: 'settings-link' },
+    { page: 'chatbot', label: 'Chatbot', icon: <ChatBubbleIcon className="w-5 h-5" /> },
+    { page: 'projects', label: 'Projects', icon: <ClipboardListIcon className="w-5 h-5" /> },
+    { page: 'settings', label: 'Settings', icon: <SettingsIcon className="w-5 h-5" /> },
   ];
 
   const navItemsSecondary: { page: Page; label: string }[] = [
@@ -87,7 +86,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentPage, onToggl
                 <span className="text-xs border border-slate-600 rounded px-1.5 py-0.5">⌘K</span>
             </button>
         </div>
-        <nav id="sidebar-nav" className="p-2 flex-grow overflow-y-auto">
+        <nav className="p-2 flex-grow overflow-y-auto">
           {/* Primary Navigation */}
           <ul className="space-y-1">
             {navItemsPrimary.map((item, index) => (
@@ -98,7 +97,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentPage, onToggl
                     delay={100 + index * 50}
                     icon={item.icon}
                     isPrimary={true}
-                    id={item.id}
                 />
             ))}
           </ul>
