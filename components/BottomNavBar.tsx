@@ -36,10 +36,9 @@ const NavLink: React.FC<{
 };
 
 const BottomNavBar: React.FC<BottomNavBarProps> = ({ currentPage }) => {
-    const { startNewChat } = useAppContext();
     const navItems: { page: Page; label: string; icon: React.ReactNode, customOnClick?: () => void }[] = [
         { page: 'home', label: 'Home', icon: <HomeIcon className="w-6 h-6" /> },
-        { page: 'chatbot', label: 'Chatbot', icon: <ChatBubbleIcon className="w-6 h-6" />, customOnClick: startNewChat },
+        { page: 'chatbot', label: 'Chatbot', icon: <ChatBubbleIcon className="w-6 h-6" /> },
         { page: 'projects', label: 'Projects', icon: <ClipboardListIcon className="w-6 h-6" /> },
         { page: 'settings', label: 'Settings', icon: <SettingsIcon className="w-6 h-6" /> },
     ];
