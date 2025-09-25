@@ -1,14 +1,4 @@
-// FIX: Import React to support JSX syntax used for illustrations.
-import React from 'react';
 import { TourStep } from './types';
-import { 
-    FaqChatInputIllustration, 
-    FaqPipelineIllustration, 
-    FaqPinIllustration, 
-    FaqShareIllustration, 
-    FaqSettingsAppearanceIllustration 
-} from './components/icons';
-
 
 export const DR_RHESUS_SYSTEM_INSTRUCTION = `
 You are Dr. Rhesus, an expert bioinformatics research assistant specializing in protein design.
@@ -97,24 +87,22 @@ export const AVATAR_OPTIONS = [
     'https://i.pravatar.cc/150?img=14',
 ];
 
-// FIX: The `illustration` property was incorrectly using component values as types.
-// This has been corrected to use `React.ReactNode`, which is the correct type for JSX elements.
 interface FaqDataItem {
     question: string;
     answer: string;
-    illustration?: React.ReactNode;
+    illustrationId?: string;
 }
 
 export const FAQ_DATA: FaqDataItem[] = [
     {
         question: "How do I start a conversation with Dr. Rhesus?",
         answer: "Simply type your question into the input bar at the bottom of the Chatbot page and press Enter. You can also click the microphone icon to use your voice to ask questions.",
-        illustration: <FaqChatInputIllustration />
+        illustrationId: "FaqChatInputIllustration"
     },
     {
         question: "What are 'Pipelines' and how do I use them?",
         answer: "Pipelines are powerful, multi-step workflows you can create to automate common research tasks. Go to Settings to create a new pipeline (e.g., 'Find structure, then run BLAST'). You can then run it from the Chatbot page using the 'Play' icon.",
-        illustration: <FaqPipelineIllustration />
+        illustrationId: "FaqPipelineIllustration"
     },
     {
         question: "How do I find and view a protein structure?",
@@ -123,17 +111,17 @@ export const FAQ_DATA: FaqDataItem[] = [
     {
         question: "What are 'Projects' and how do I save my findings?",
         answer: "Projects are your interactive lab workspaces. When Dr. Rhesus provides a result like a 3D viewer or a BLAST chart, hover over it and click the 'Pin' icon to save it to a project for later reference and analysis. Each project also maintains its own separate chat history.",
-        illustration: <FaqPinIllustration />
+        illustrationId: "FaqPinIllustration"
     },
     {
         question: "How can I share a result with a colleague?",
         answer: "Hover over any result block (like a PDB viewer) and click the 'Share' icon. This will generate a unique, shareable link (a 'Snapshot') that you can send to others so they can view the same result.",
-        illustration: <FaqShareIllustration />
+        illustrationId: "FaqShareIllustration"
     },
     {
         question: "How do I change the app's appearance?",
         answer: "Go to the Settings page. Under the 'Appearance' section, you can choose your preferred color mode (light/dark), accent color, and background tone to customize the look and feel of the application.",
-        illustration: <FaqSettingsAppearanceIllustration />
+        illustrationId: "FaqSettingsAppearanceIllustration"
     }
 ];
 
