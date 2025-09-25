@@ -15,7 +15,11 @@ import { PinIcon, ShareIcon, CheckIcon } from '../components/icons';
 declare const window: any; // For SpeechRecognition
 
 const ChatbotPage: React.FC = () => {
-  const { projects, setProjects, pipelines, setApiStatus, activeProjectId, setActiveProjectId, activeProjectName, recentChats, setRecentChats } = useAppContext();
+  const { 
+      projects, setProjects, pipelines, setApiStatus, 
+      activeProjectId, activeProjectName, recentChats, setRecentChats,
+      isNewChat, setIsNewChat
+  } = useAppContext();
   const [chat, setChat] = useState<Chat | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -188,8 +192,16 @@ const ChatbotPage: React.FC = () => {
       }
       
       if (!finalPrompt.trim()) return;
+      
+      const isStartingANewConversation = isNewChat;
 
-      const isNewConversation = messages.length <= 1;
+      if (isNewChat) {
+          setIsNewChat(false);
+          // If starting a new general chat, clear its previous history before saving the new one
+          if (!activeProjectId) {
+              localStorage.removeItem('chatHistory_general');
+          }
+      }
 
       const displayedMessage = messageContent || `Uploaded ${file?.name}`;
       const newUserMessage: Message = { 
@@ -205,19 +217,16 @@ const ChatbotPage: React.FC = () => {
       setInput('');
       setReplyingTo(null);
       
-      // Update recent chats list if it's a new conversation
-      if (isNewConversation) {
+      if (isStartingANewConversation) {
           const chatId = activeProjectId || 'general';
-          if (!recentChats.find(c => c.id === chatId)) {
-              let title = finalPrompt.substring(0, 40);
-              if (finalPrompt.length > 40) title += '...';
-              
-              const newChat: RecentChat = activeProjectId
-                  ? { id: activeProjectId, title, type: 'project', projectName: activeProjectName }
-                  : { id: 'general', title, type: 'general' };
+          let title = finalPrompt.substring(0, 40);
+          if (finalPrompt.length > 40) title += '...';
+          
+          const newChat: RecentChat = activeProjectId
+              ? { id: activeProjectId, title, type: 'project', projectName: activeProjectName }
+              : { id: 'general', title, type: 'general' };
 
-              setRecentChats(prev => [newChat, ...prev.filter(c => c.id !== newChat.id)]);
-          }
+          setRecentChats(prev => [newChat, ...prev.filter(c => c.id !== newChat.id)]);
       }
 
       const rhesusMessageId = `rhesus-${Date.now()}`;
@@ -250,20 +259,19 @@ const ChatbotPage: React.FC = () => {
       } finally {
           setIsLoading(false);
       }
-  }, [chat, setApiStatus, parseAndRenderResponse, messages.length, activeProjectId, activeProjectName, recentChats, setRecentChats]);
+  }, [chat, setApiStatus, parseAndRenderResponse, activeProjectId, activeProjectName, recentChats, setRecentChats, isNewChat, setIsNewChat]);
 
   const handleNewChat = useCallback(() => {
     try {
         const greeting = GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
         setMessages([{ id: 'initial', author: MessageAuthor.RHESUS, content: <MarkdownRenderer content={greeting}/>, rawContent: greeting }]);
-        localStorage.removeItem(historyKey);
         setReplyingTo(null);
     } catch (error) {
         console.error("Failed to start new chat:", error);
         const errorMsg = { id: `error-${Date.now()}`, author: MessageAuthor.SYSTEM, content: "Sorry, an error occurred while starting a new chat.", rawContent: "Sorry, an error occurred while starting a new chat." };
         setMessages(prev => [...prev, errorMsg]);
     }
-  }, [historyKey]);
+  }, []);
 
   const handleSendMessageRef = useRef(handleSendMessage);
   useEffect(() => { handleSendMessageRef.current = handleSendMessage; }, [handleSendMessage]);
@@ -272,8 +280,13 @@ const ChatbotPage: React.FC = () => {
   useEffect(() => { replyingToRef.current = replyingTo; }, [replyingTo]);
   
   useEffect(() => {
-    const newChat = createChatSession();
-    setChat(newChat);
+    setChat(createChatSession());
+
+    if (isNewChat) {
+        handleNewChat();
+        return;
+    }
+
     const stored = localStorage.getItem(historyKey);
     let hasHistory = false;
     if (stored) {
@@ -314,23 +327,25 @@ const ChatbotPage: React.FC = () => {
         };
         recognitionRef.current = recognition;
     }
-  }, [historyKey, rehydrateMessages, handleNewChat]);
+  }, [historyKey, rehydrateMessages, handleNewChat, isNewChat]);
 
   useEffect(() => {
     const initialQuery = sessionStorage.getItem('initialQuery');
     if (initialQuery && chat) {
         sessionStorage.removeItem('initialQuery');
+        setIsNewChat(false); // We are starting a specific query
         setMessages([]);
         handleSendMessage(initialQuery);
     }
-  }, [chat, handleSendMessage]);
+  }, [chat, handleSendMessage, setIsNewChat]);
 
   useEffect(() => {
-    if (messages.length > 1) { // Don't save initial greeting message alone
-      const serializableMessages = messages.map(({ id, author, rawContent, actions, replyTo }) => ({ id, author, rawContent, actions, replyTo }));
-      localStorage.setItem(historyKey, JSON.stringify(serializableMessages));
-    }
-  }, [messages, historyKey]);
+    // Don't save if it's a new chat or if there's only the initial greeting
+    if (isNewChat || messages.length <= 1) return;
+    
+    const serializableMessages = messages.map(({ id, author, rawContent, actions, replyTo }) => ({ id, author, rawContent, actions, replyTo }));
+    localStorage.setItem(historyKey, JSON.stringify(serializableMessages));
+  }, [messages, historyKey, isNewChat]);
   
   const handleToggleRecording = () => {
     if (!recognitionRef.current) return;
