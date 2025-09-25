@@ -14,6 +14,10 @@ import { PinIcon, ShareIcon, CheckIcon } from '../components/icons';
 
 declare const window: any; // For SpeechRecognition
 
+const Caption: React.FC<{ text: string }> = ({ text }) => (
+    <p className="text-xs text-center font-semibold text-[var(--muted-foreground-color)] mb-2 uppercase tracking-wider">{text}</p>
+);
+
 const ChatbotPage: React.FC = () => {
   const { 
       projects, setProjects, pipelines, setApiStatus, 
@@ -100,23 +104,31 @@ const ChatbotPage: React.FC = () => {
                 try {
                     const { type, data } = tool_call;
                     const contentBlock: ContentBlock = { id: `tool-${Date.now()}-${index}`, type, data };
-                    componentParts.push(
-                        <div key={contentBlock.id} className="relative group my-2 first:mt-0 last:mb-0">
-                            {type === ContentType.PDB_VIEWER && <PDBViewer pdbId={data.pdbId} />}
-                            {type === ContentType.PUBMED_SUMMARY && <div className="p-4 bg-[var(--input-background-color)] rounded-lg border border-[var(--border-color)]"><h3 className="font-bold mb-2 primary-text">Literature Summary</h3><MarkdownRenderer content={data.summary} /></div>}
-                            {type === ContentType.BLAST_RESULT && (
-                              <div className="p-4 bg-[var(--input-background-color)] rounded-lg border border-[var(--border-color)]">
-                                <h3 className="font-bold mb-2 primary-text">BLAST Result</h3>
-                                {Array.isArray(data) ? <BlastViewer data={data} /> : <pre className="whitespace-pre-wrap text-xs">{JSON.stringify(data, null, 2)}</pre>}
-                              </div>
-                            )}
-                            
-                            <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                                <button onClick={() => handleSaveContent(contentBlock)} className="p-1.5 bg-slate-700/80 text-white rounded-full hover:bg-slate-600"><PinIcon /></button>
-                                <button onClick={() => handleShareContent(contentBlock)} className="p-1.5 bg-slate-700/80 text-white rounded-full hover:bg-slate-600"><ShareIcon /></button>
+                    let contentWithCaption: React.ReactNode = null;
+
+                    switch (type) {
+                        case ContentType.PDB_VIEWER:
+                            contentWithCaption = (<div><Caption text={`3D Structure: ${data.pdbId}`} /><PDBViewer pdbId={data.pdbId} /></div>);
+                            break;
+                        case ContentType.PUBMED_SUMMARY:
+                            contentWithCaption = (<div className="p-4 bg-[var(--input-background-color)] rounded-lg border border-[var(--border-color)]"><Caption text="Literature Summary" /><h3 className="font-bold mb-2 primary-text">Summary</h3><MarkdownRenderer content={data.summary} /></div>);
+                            break;
+                        case ContentType.BLAST_RESULT:
+                            contentWithCaption = (<div className="p-4 bg-[var(--input-background-color)] rounded-lg border border-[var(--border-color)]"><Caption text="BLAST Results" />{Array.isArray(data) ? <BlastViewer data={data} /> : <pre className="whitespace-pre-wrap text-xs">{JSON.stringify(data, null, 2)}</pre>}</div>);
+                            break;
+                    }
+                    
+                    if (contentWithCaption) {
+                         componentParts.push(
+                            <div key={contentBlock.id} className="relative group my-2 first:mt-0 last:mb-0">
+                                {contentWithCaption}
+                                <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                    <button onClick={() => handleSaveContent(contentBlock)} className="p-1.5 bg-slate-700/80 text-white rounded-full hover:bg-slate-600"><PinIcon /></button>
+                                    <button onClick={() => handleShareContent(contentBlock)} className="p-1.5 bg-slate-700/80 text-white rounded-full hover:bg-slate-600"><ShareIcon /></button>
+                                </div>
                             </div>
-                        </div>
-                    );
+                        );
+                    }
                 } catch (renderError) {
                     console.error("Error rendering tool_call:", tool_call, renderError);
                     componentParts.push(<div key={`error-${index}`} className="text-red-500 text-sm">Error displaying tool output.</div>);
@@ -194,14 +206,6 @@ const ChatbotPage: React.FC = () => {
       if (!finalPrompt.trim()) return;
       
       const isStartingANewConversation = isNewChat;
-
-      if (isStartingANewConversation) {
-          setIsNewChat(false);
-          if (!activeProjectId) {
-              localStorage.removeItem('chatHistory_general');
-          }
-      }
-
       const displayedMessage = messageContent || `Uploaded ${file?.name}`;
       const newUserMessage: Message = { 
           id: Date.now().toString(), 
@@ -211,32 +215,32 @@ const ChatbotPage: React.FC = () => {
           replyTo: replyToMessage ? { id: replyToMessage.id, author: replyToMessage.author === MessageAuthor.USER ? "you" : "Dr. Rhesus", content: replyToMessage.rawContent || ''} : undefined
       };
       
-      if (isStartingANewConversation) {
-        const greeting = GREETINGS[0];
-        const greetingMsg: Message = { id: 'initial', author: MessageAuthor.RHESUS, content: <MarkdownRenderer content={greeting}/>, rawContent: greeting };
-        setMessages([greetingMsg, newUserMessage]);
-      } else {
-        setMessages(prev => [...prev, newUserMessage]);
-      }
+      const rhesusMessageId = `rhesus-${Date.now()}`;
+      const rhesusThinkingBubble: Message = { id: rhesusMessageId, author: MessageAuthor.RHESUS, content: '', rawContent: '' };
 
-      setIsLoading(true);
-      setInput('');
-      setReplyingTo(null);
-      
+      // Atomically update message list to avoid race conditions
       if (isStartingANewConversation) {
+          setIsNewChat(false);
+          const greeting = GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
+          const greetingMsg: Message = { id: 'initial', author: MessageAuthor.RHESUS, content: <MarkdownRenderer content={greeting}/>, rawContent: greeting };
+          
+          setMessages([greetingMsg, newUserMessage, rhesusThinkingBubble]);
+          
           const chatId = activeProjectId || 'general';
           let title = finalPrompt.substring(0, 40);
           if (finalPrompt.length > 40) title += '...';
-          
           const newChat: RecentChat = activeProjectId
               ? { id: activeProjectId, title, type: 'project', projectName: activeProjectName }
               : { id: 'general', title, type: 'general' };
-
           setRecentChats(prev => [newChat, ...prev.filter(c => c.id !== newChat.id)]);
-      }
 
-      const rhesusMessageId = `rhesus-${Date.now()}`;
-      setMessages(prev => [...prev, { id: rhesusMessageId, author: MessageAuthor.RHESUS, content: '', rawContent: '' }]);
+      } else {
+          setMessages(prev => [...prev, newUserMessage, rhesusThinkingBubble]);
+      }
+      
+      setIsLoading(true);
+      setInput('');
+      setReplyingTo(null);
       
       try {
           let fullResponse = "";
@@ -278,24 +282,23 @@ const ChatbotPage: React.FC = () => {
 
     if (isNewChat) {
         setMessages([]); // Start with an empty screen for the "Welcome" component
-        return;
-    }
-
-    const stored = localStorage.getItem(historyKey);
-    if (stored) {
-        try {
-            const storedMessages = JSON.parse(stored);
-            if (storedMessages.length > 0) {
-                setMessages(rehydrateMessages(storedMessages));
-            } else {
-                setMessages([]); // Ensure it's empty if stored history is empty
-            }
-        } catch (e) {
-            localStorage.removeItem(historyKey);
-            setMessages([]);
-        }
     } else {
-        setMessages([]); // No history, so start empty
+        const stored = localStorage.getItem(historyKey);
+        if (stored) {
+            try {
+                const storedMessages = JSON.parse(stored);
+                if (storedMessages.length > 0) {
+                    setMessages(rehydrateMessages(storedMessages));
+                } else {
+                    setMessages([]); // Ensure it's empty if stored history is empty
+                }
+            } catch (e) {
+                localStorage.removeItem(historyKey);
+                setMessages([]);
+            }
+        } else {
+            setMessages([]); // No history, so start empty
+        }
     }
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -333,9 +336,11 @@ const ChatbotPage: React.FC = () => {
   }, [chat, handleSendMessage, setIsNewChat]);
 
   useEffect(() => {
-    // Don't save if it's a new chat with no messages yet
-    if (isNewChat || messages.length === 0) return;
+    if (isNewChat) return;
     
+    // Don't save empty chat history, which can happen on initial load
+    if (messages.length === 0 && !localStorage.getItem(historyKey)) return;
+
     const serializableMessages = messages.map(({ id, author, rawContent, actions, replyTo }) => ({ id, author, rawContent, actions, replyTo }));
     localStorage.setItem(historyKey, JSON.stringify(serializableMessages));
   }, [messages, historyKey, isNewChat]);
