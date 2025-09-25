@@ -134,4 +134,6 @@ export interface AppContextType {
   recentChats: RecentChat[];
   setRecentChats: React.Dispatch<React.SetStateAction<RecentChat[]>>;
   startNewChat: () => void;
+  isNewChat: boolean;
+  setIsNewChat: (isNewChat: boolean) => void;
 }
