@@ -109,7 +109,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
                 <div className="flex-1 relative">
                     <textarea
-                        id="chat-input-textarea"
                         ref={textareaRef}
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
