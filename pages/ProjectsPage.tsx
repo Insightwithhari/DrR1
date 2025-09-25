@@ -118,7 +118,7 @@ const ProjectsPage: React.FC = () => {
             <div className="max-w-5xl mx-auto">
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-3xl font-bold primary-text">My Projects</h1>
-                    <button id="new-project-button" onClick={() => setIsCreating(true)} className="flex items-center gap-2 px-4 py-2 primary-bg text-white rounded-lg primary-bg-hover transition-colors">
+                    <button onClick={() => setIsCreating(true)} className="flex items-center gap-2 px-4 py-2 primary-bg text-white rounded-lg primary-bg-hover transition-colors">
                         <PlusIcon /> New Project
                     </button>
                 </div>
