@@ -73,7 +73,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   return (
     <div className="flex-1 overflow-y-auto flex flex-col">
-      {messages.length <= 1 && !isLoading ? (
+      {messages.length === 0 && !isLoading ? (
         <ChatWelcome onPromptClick={onPromptClick} />
       ) : (
         <div className="flex-1 p-4 space-y-6">
