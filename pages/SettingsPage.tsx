@@ -35,8 +35,7 @@ const SettingsPage: React.FC = () => {
         accentColor, setAccentColor,
         backgroundColor, setBackgroundColor,
         pipelines, setPipelines,
-        logout,
-        startTour
+        logout
     } = useAppContext();
 
     const [isProfileExpanded, setIsProfileExpanded] = useState(false);
@@ -193,11 +192,6 @@ const SettingsPage: React.FC = () => {
                 <SettingsCard title="Help & Feedback">
                     <div className="space-y-2">
                         {FAQ_DATA.map((faq, i) => <FAQItem key={i} question={faq.question} answer={faq.answer} illustrationId={faq.illustrationId} />)}
-                    </div>
-                     <div className="mt-4 pt-4 border-t border-[var(--border-color)]">
-                        <button onClick={startTour} className="w-full text-left px-4 py-3 bg-[var(--input-background-color)] rounded-lg hover:bg-[var(--border-color)] text-sm font-semibold">
-                            Start Guided Tour
-                        </button>
                     </div>
                     <div className="mt-4 pt-4 border-t border-[var(--border-color)]">
                         <h3 className="text-md font-medium text-[var(--card-foreground-color)] mb-2">Send Feedback</h3>
