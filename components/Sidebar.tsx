@@ -11,17 +11,8 @@ interface SidebarProps {
   onToggleCommandPalette: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentPage, onToggleCommandPalette }) => {
-  const { recentChats, activeProjectId, setActiveProjectId, startNewChat } = useAppContext();
-
-  const handleRecentChatClick = (id: string | null) => {
-    setActiveProjectId(id);
-    onClose();
-    window.location.hash = '#chatbot';
-  };
-
-  const NavLink: React.FC<{ page: Page; label: string; delay: number; icon: React.ReactNode; isPrimary: boolean }> = ({ page, label, delay, icon, isPrimary }) => {
-    const isActive = currentPage === page;
+// FIX: Added isOpen prop to NavLink to control animations.
+const NavLink: React.FC<{ page: Page; label: string; delay: number; icon: React.ReactNode; isPrimary: boolean; customOnClick?: () => void; onClose: () => void; isActive: boolean; isOpen: boolean; }> = ({ page, label, delay, icon, isPrimary, customOnClick, onClose, isActive, isOpen }) => {
     
     const activeClasses = isPrimary 
       ? 'bg-slate-700 text-white primary-border border-l-4' 
@@ -33,6 +24,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentPage, onToggl
     const textStyle = isPrimary ? 'font-semibold' : 'font-mono text-sm';
     const padding = isPrimary ? 'px-4 py-3' : 'px-4 py-2';
 
+    const handleClick = (e: React.MouseEvent) => {
+        if (customOnClick) {
+            e.preventDefault();
+            customOnClick();
+        }
+        onClose();
+    };
+
     return (
       <li 
         className={`transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-10'}`}
@@ -40,7 +39,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentPage, onToggl
       >
         <a
           href={`#${page}`}
-          onClick={onClose}
+          onClick={handleClick}
           className={`w-full text-left block transition-all duration-300 flex items-center gap-3 rounded-r-md ${padding} ${textStyle} ${isActive ? activeClasses : inactiveClasses}`}
         >
           {icon}
@@ -48,6 +47,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentPage, onToggl
         </a>
       </li>
     );
+};
+
+
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentPage, onToggleCommandPalette }) => {
+  const { recentChats, activeProjectId, setActiveProjectId, startNewChat, isNewChat, setIsNewChat } = useAppContext();
+
+  const handleRecentChatClick = (id: string | null) => {
+    setActiveProjectId(id);
+    setIsNewChat(false);
+    onClose();
+    window.location.hash = '#chatbot';
   };
 
   const navItemsPrimary: { page: Page; label: string; icon: React.ReactNode }[] = [
@@ -97,6 +107,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentPage, onToggl
                     delay={100 + index * 50}
                     icon={item.icon}
                     isPrimary={true}
+                    isActive={currentPage === item.page}
+                    onClose={onClose}
+                    customOnClick={item.page === 'chatbot' ? startNewChat : undefined}
+                    isOpen={isOpen}
                 />
             ))}
           </ul>
@@ -116,7 +130,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentPage, onToggl
                   </div>
                   <ul className="space-y-1 text-sm">
                       {recentChats.map(chat => {
-                          const isActive = chat.id === (activeProjectId || 'general');
+                          const isActive = !isNewChat && chat.id === (activeProjectId || 'general');
                           return (
                               <li key={chat.id}>
                                   <button 
@@ -146,6 +160,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentPage, onToggl
                     delay={300 + index * 50}
                     icon={<span className="w-5 h-5"></span>}
                     isPrimary={false}
+                    isActive={currentPage === item.page}
+                    onClose={onClose}
+                    isOpen={isOpen}
                 />
             ))}
           </ul>
