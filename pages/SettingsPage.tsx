@@ -2,9 +2,29 @@ import React, { useState, useRef } from 'react';
 import { useAppContext } from '../App';
 import { AVATAR_OPTIONS, FAQ_DATA } from '../constants';
 import { Pipeline, PipelineStep, AccentColor, BackgroundColor, Theme } from '../types';
-import { PlusIcon, PencilIcon, TrashIcon, QuestionMarkCircleIcon, SunIcon, MoonIcon } from '../components/icons';
+import { 
+    PlusIcon, 
+    PencilIcon, 
+    TrashIcon, 
+    QuestionMarkCircleIcon, 
+    SunIcon, 
+    MoonIcon,
+    FaqChatInputIllustration, 
+    FaqPipelineIllustration, 
+    FaqPinIllustration, 
+    FaqShareIllustration, 
+    FaqSettingsAppearanceIllustration 
+} from '../components/icons';
 import { THEME_CONFIG } from '../theme';
 
+// Map string IDs to actual components to be rendered in the TSX file
+const FaqIllustrations: Record<string, React.ReactNode> = {
+    FaqChatInputIllustration: <FaqChatInputIllustration />,
+    FaqPipelineIllustration: <FaqPipelineIllustration />,
+    FaqPinIllustration: <FaqPinIllustration />,
+    FaqShareIllustration: <FaqShareIllustration />,
+    FaqSettingsAppearanceIllustration: <FaqSettingsAppearanceIllustration />,
+};
 
 const SettingsPage: React.FC = () => {
     const { 
@@ -172,7 +192,7 @@ const SettingsPage: React.FC = () => {
             <div className="lg:col-span-1 space-y-8">
                 <SettingsCard title="Help & Feedback">
                     <div className="space-y-2">
-                        {FAQ_DATA.map((faq, i) => <FAQItem key={i} question={faq.question} answer={faq.answer} illustration={faq.illustration} />)}
+                        {FAQ_DATA.map((faq, i) => <FAQItem key={i} question={faq.question} answer={faq.answer} illustrationId={faq.illustrationId} />)}
                     </div>
                      <div className="mt-4 pt-4 border-t border-[var(--border-color)]">
                         <button onClick={startTour} className="w-full text-left px-4 py-3 bg-[var(--input-background-color)] rounded-lg hover:bg-[var(--border-color)] text-sm font-semibold">
@@ -261,23 +281,26 @@ const ColorPalette: React.FC<{title: string, colors: string[], selected: string,
         </div>
     </div>
 );
-const FAQItem: React.FC<{question: string, answer: string, illustration?: React.ReactNode}> = ({ question, answer, illustration }) => (
-    <details className="p-3 bg-[var(--input-background-color)] rounded-lg text-sm group">
-        <summary className="font-semibold cursor-pointer flex items-center gap-2 text-[var(--foreground-color)] list-none group-open:primary-text">
-            <QuestionMarkCircleIcon className="w-5 h-5 primary-text flex-shrink-0 transition-colors duration-300" /> 
-            <span className="flex-1">{question}</span>
-            <span className="ml-auto group-open:rotate-90 transition-transform duration-300 transform-gpu">&#9656;</span>
-        </summary>
-        <div className="mt-2 text-[var(--muted-foreground-color)] pl-7 space-y-3">
-            <p>{answer}</p>
-            {illustration && (
-                <div className="p-2 border border-[var(--border-color)] rounded-md bg-[var(--card-background-color)]">
-                    {illustration}
-                </div>
-            )}
-        </div>
-    </details>
-);
+const FAQItem: React.FC<{question: string, answer: string, illustrationId?: string}> = ({ question, answer, illustrationId }) => {
+    const illustration = illustrationId ? FaqIllustrations[illustrationId] : null;
+    return (
+        <details className="p-3 bg-[var(--input-background-color)] rounded-lg text-sm group">
+            <summary className="font-semibold cursor-pointer flex items-center gap-2 text-[var(--foreground-color)] list-none group-open:primary-text">
+                <QuestionMarkCircleIcon className="w-5 h-5 primary-text flex-shrink-0 transition-colors duration-300" /> 
+                <span className="flex-1">{question}</span>
+                <span className="ml-auto group-open:rotate-90 transition-transform duration-300 transform-gpu">&#9656;</span>
+            </summary>
+            <div className="mt-2 text-[var(--muted-foreground-color)] pl-7 space-y-3">
+                <p>{answer}</p>
+                {illustration && (
+                    <div className="p-2 border border-[var(--border-color)] rounded-md bg-[var(--card-background-color)]">
+                        {illustration}
+                    </div>
+                )}
+            </div>
+        </details>
+    );
+};
 
 const ExamplePipeline: React.FC = () => (
     <div className="p-4 bg-[var(--input-background-color)] rounded-lg border-2 border-dashed border-[var(--border-color)] opacity-60 pointer-events-none">
