@@ -1,13 +1,13 @@
 // FIX: Import React to support JSX syntax used for illustrations.
 import React from 'react';
-import { TourStep } from '../types';
+import { TourStep } from './types';
 import { 
     FaqChatInputIllustration, 
     FaqPipelineIllustration, 
     FaqPinIllustration, 
     FaqShareIllustration, 
     FaqSettingsAppearanceIllustration 
-} from '../components/icons';
+} from './components/icons';
 
 
 export const DR_RHESUS_SYSTEM_INSTRUCTION = `
@@ -97,8 +97,8 @@ export const AVATAR_OPTIONS = [
     'https://i.pravatar.cc/150?img=14',
 ];
 
-// FIX: Corrected the FaqDataItem interface to use React.ReactNode for the illustration property.
-// This resolves errors where component values were being used as types.
+// FIX: The `illustration` property was incorrectly using component values as types.
+// This has been corrected to use `React.ReactNode`, which is the correct type for JSX elements.
 interface FaqDataItem {
     question: string;
     answer: string;
