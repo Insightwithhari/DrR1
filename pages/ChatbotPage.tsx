@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { Chat } from '@google/genai';
-import { createChatSession, sendMessageStream, sendMessageWithSearch } from '../services/geminiService';
+import { createChatSession, sendMessage, sendMessageWithSearch } from '../services/geminiService';
 import { Message, MessageAuthor, ContentType, Project, Snapshot, BlastHit, ContentBlock, Pipeline, AiResponse, ToolCall, RecentChat } from '../types';
 import { GREETINGS } from '../constants';
 import { useAppContext } from '../App';
@@ -206,6 +206,8 @@ const ChatbotPage: React.FC = () => {
       if (!finalPrompt.trim()) return;
       
       const isStartingANewConversation = isNewChat;
+      setIsNewChat(false); // Any message sent makes it an existing chat
+
       const displayedMessage = messageContent || `Uploaded ${file?.name}`;
       const newUserMessage: Message = { 
           id: Date.now().toString(), 
@@ -215,17 +217,12 @@ const ChatbotPage: React.FC = () => {
           replyTo: replyToMessage ? { id: replyToMessage.id, author: replyToMessage.author === MessageAuthor.USER ? "you" : "Dr. Rhesus", content: replyToMessage.rawContent || ''} : undefined
       };
       
-      const rhesusMessageId = `rhesus-${Date.now()}`;
-      const rhesusThinkingBubble: Message = { id: rhesusMessageId, author: MessageAuthor.RHESUS, content: '', rawContent: '' };
-
-      // Atomically update message list to avoid race conditions
+      setMessages(prev => [...prev, newUserMessage]);
+      setIsLoading(true);
+      setInput('');
+      setReplyingTo(null);
+      
       if (isStartingANewConversation) {
-          setIsNewChat(false);
-          const greeting = GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
-          const greetingMsg: Message = { id: 'initial', author: MessageAuthor.RHESUS, content: <MarkdownRenderer content={greeting}/>, rawContent: greeting };
-          
-          setMessages([greetingMsg, newUserMessage, rhesusThinkingBubble]);
-          
           const chatId = activeProjectId || 'general';
           let title = finalPrompt.substring(0, 40);
           if (finalPrompt.length > 40) title += '...';
@@ -233,26 +230,10 @@ const ChatbotPage: React.FC = () => {
               ? { id: activeProjectId, title, type: 'project', projectName: activeProjectName }
               : { id: 'general', title, type: 'general' };
           setRecentChats(prev => [newChat, ...prev.filter(c => c.id !== newChat.id)]);
-
-      } else {
-          setMessages(prev => [...prev, newUserMessage, rhesusThinkingBubble]);
       }
-      
-      setIsLoading(true);
-      setInput('');
-      setReplyingTo(null);
-      
+
       try {
-          let fullResponse = "";
-          if (messageContent.toLowerCase().includes('search the web')) {
-              const response = await sendMessageWithSearch(finalPrompt);
-              fullResponse = response.text;
-          } else {
-              const responseStream = await sendMessageStream(chat, finalPrompt);
-              for await (const chunk of responseStream) {
-                fullResponse += chunk.text;
-              }
-          }
+          const fullResponse = await sendMessage(chat, finalPrompt);
 
           let actions: any[] = [];
           try {
@@ -260,12 +241,20 @@ const ChatbotPage: React.FC = () => {
               actions = parsed.actions || [];
           } catch (e) { /* Ignore if not valid JSON */ }
 
-          setMessages(prev => prev.map(msg => msg.id === rhesusMessageId ? { ...msg, content: parseAndRenderResponse(fullResponse), rawContent: fullResponse, actions } : msg));
+          const rhesusMessage: Message = {
+            id: `rhesus-${Date.now()}`,
+            author: MessageAuthor.RHESUS,
+            content: parseAndRenderResponse(fullResponse),
+            rawContent: fullResponse,
+            actions
+          };
+
+          setMessages(prev => [...prev, rhesusMessage]);
           setApiStatus('healthy');
       } catch (error) {
           setApiStatus('error');
-          const errorMsg = { id: `error-${Date.now()}`, author: MessageAuthor.SYSTEM, content: "Sorry, an error occurred communicating with the AI.", rawContent: "Sorry, an error occurred communicating with the AI." };
-          setMessages(prev => prev.map(m => m.id === rhesusMessageId ? errorMsg : m));
+          const errorMsg: Message = { id: `error-${Date.now()}`, author: MessageAuthor.SYSTEM, content: "Sorry, an error occurred communicating with the AI.", rawContent: "Sorry, an error occurred communicating with the AI." };
+          setMessages(prev => [...prev, errorMsg]);
       } finally {
           setIsLoading(false);
       }
@@ -280,26 +269,30 @@ const ChatbotPage: React.FC = () => {
   useEffect(() => {
     setChat(createChatSession());
 
+    let initialMessages: Message[] = [];
     if (isNewChat) {
-        setMessages([]); // Start with an empty screen for the "Welcome" component
+      const greeting = GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
+      initialMessages = [{ id: 'initial', author: MessageAuthor.RHESUS, content: <MarkdownRenderer content={greeting}/>, rawContent: greeting }];
     } else {
         const stored = localStorage.getItem(historyKey);
         if (stored) {
             try {
                 const storedMessages = JSON.parse(stored);
-                if (storedMessages.length > 0) {
-                    setMessages(rehydrateMessages(storedMessages));
-                } else {
-                    setMessages([]); // Ensure it's empty if stored history is empty
+                if (Array.isArray(storedMessages) && storedMessages.length > 0) {
+                    initialMessages = rehydrateMessages(storedMessages);
                 }
             } catch (e) {
                 localStorage.removeItem(historyKey);
-                setMessages([]);
             }
-        } else {
-            setMessages([]); // No history, so start empty
         }
     }
+    // If after all checks, messages are still empty, add initial greeting
+    if(initialMessages.length === 0) {
+        const greeting = GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
+        initialMessages = [{ id: 'initial', author: MessageAuthor.RHESUS, content: <MarkdownRenderer content={greeting}/>, rawContent: greeting }];
+    }
+
+    setMessages(initialMessages);
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
@@ -329,17 +322,13 @@ const ChatbotPage: React.FC = () => {
     const initialQuery = sessionStorage.getItem('initialQuery');
     if (initialQuery && chat) {
         sessionStorage.removeItem('initialQuery');
-        setIsNewChat(true); // Start as a new chat
-        setMessages([]); // Clear any potential loaded messages
         handleSendMessage(initialQuery);
     }
-  }, [chat, handleSendMessage, setIsNewChat]);
+  }, [chat, handleSendMessage]);
 
   useEffect(() => {
+    // Don't save if it's a new chat that hasn't had any user interaction yet.
     if (isNewChat) return;
-    
-    // Don't save empty chat history, which can happen on initial load
-    if (messages.length === 0 && !localStorage.getItem(historyKey)) return;
 
     const serializableMessages = messages.map(({ id, author, rawContent, actions, replyTo }) => ({ id, author, rawContent, actions, replyTo }));
     localStorage.setItem(historyKey, JSON.stringify(serializableMessages));
