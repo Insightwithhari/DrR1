@@ -70,7 +70,6 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, currentPage, onToggleC
                     </button>
                 )}
                 <button 
-                    id="command-palette-button"
                     onClick={onToggleCommandPalette}
                     className="p-2 rounded-full hover:bg-[var(--input-background-color)] transition-colors"
                     aria-label="Open command palette"
