@@ -60,10 +60,19 @@ const App: React.FC = () => {
       return [];
     }
   });
-  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(() => {
+    const lastId = localStorage.getItem('lastActiveChatId');
+    return lastId === 'general' ? null : lastId;
+  });
+
   const [apiStatus, setApiStatus] = useState<ApiStatus>('idle');
   const [recentChats, setRecentChats] = useState<RecentChat[]>([]);
-  const [isNewChat, setIsNewChat] = useState<boolean>(true);
+  
+  const [isNewChat, setIsNewChat] = useState<boolean>(() => {
+    // If there's no record of a last active chat, start fresh.
+    return !localStorage.getItem('lastActiveChatId');
+  });
 
   const [pipelines, setPipelines] = useState<Pipeline[]>(() => {
     const storedPipelines = localStorage.getItem('pipelines');
@@ -161,6 +170,11 @@ const App: React.FC = () => {
   useEffect(() => {
     if (pipelines) localStorage.setItem('pipelines', JSON.stringify(pipelines));
   }, [pipelines]);
+  
+  // Save the last active chat context to local storage
+  useEffect(() => {
+    localStorage.setItem('lastActiveChatId', activeProjectId || 'general');
+  }, [activeProjectId]);
   
   // Load recent chats from localStorage on initial mount
   useEffect(() => {
