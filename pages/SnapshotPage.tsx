@@ -35,8 +35,9 @@ const SnapshotPage: React.FC = () => {
         try {
             // This is a single content block, not a chat session
             switch (block.type) {
+                // FIX: Pass 'id' and 'source' props to PDBViewer instead of 'pdbId'.
                 case ContentType.PDB_VIEWER:
-                    return <PDBViewer pdbId={block.data.pdbId} />;
+                    return <PDBViewer id={block.data.id} source={block.data.source} />;
                 case ContentType.TEXT:
                     return <MarkdownRenderer content={block.data} />;
                 case ContentType.PUBMED_SUMMARY:
