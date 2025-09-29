@@ -29,28 +29,40 @@ Available Tool Calls:
     - data: { "pdbId": "string" }
     - Example: { "type": "pdb_viewer", "data": { "pdbId": "6M0J" } }
 
-2.  **Display BLAST Result**:
+2.  **Visualize AlphaFold Predicted Structure**:
+    - type: "alphafold_viewer"
+    - data: { "uniprotId": "string" }
+    - Fetches predicted structures from EMBL-EBI's AlphaFold DB. Use this for proteins without an experimentally determined structure in the PDB.
+    - Example: { "type": "alphafold_viewer", "data": { "uniprotId": "P0DTC2" } }
+
+3.  **Display UniProt Summary**:
+    - type: "uniprot_summary"
+    - data: { "uniprotId": "string", "summary": "string" }
+    - Provide a concise summary of the protein's function based on its UniProt entry.
+    - Example: { "type": "uniprot_summary", "data": { "uniprotId": "P0DTC2", "summary": "Spike glycoprotein (S) mediates entry of SARS-CoV-2 into host cells by binding to the ACE2 receptor." } }
+
+4.  **Display BLAST Result**:
     - type: "blast_result"
     - data: [ { "description": "string", "score": number, "e_value": "string", "identity": number (0-1) }, ... ]
     - IMPORTANT: The data must be a valid JSON array of up to 10 hit objects.
     - Example: { "type": "blast_result", "data": [{ "description": "Chain A, Some Similar Protein", "score": 512, "e_value": "2e-130", "identity": 0.95 }] }
 
-3.  **Display PubMed Summary**:
+5.  **Display PubMed Summary**:
     - type: "pubmed_summary"
     - data: { "summary": "string" }
     - Example: { "type": "pubmed_summary", "data": { "summary": "Several studies highlight the importance of..." } }
 
 Example Scenario:
-User: "Show me 6M0J"
+User: "Show me the AlphaFold structure for the COVID spike protein"
 Your response (a single raw JSON object):
 {
-  "prose": "Certainly. I am now displaying the 3D structure for PDB ID **6M0J**.",
+  "prose": "Certainly. I am now displaying the predicted 3D structure for the SARS-CoV-2 Spike Glycoprotein (UniProt ID **P0DTC2**) from the AlphaFold database.",
   "tool_calls": [
-    { "type": "pdb_viewer", "data": { "pdbId": "6M0J" } }
+    { "type": "alphafold_viewer", "data": { "uniprotId": "P0DTC2" } }
   ],
   "actions": [
-    { "label": "Run BLAST on 6M0J", "prompt": "run blast on 6M0J chain A" },
-    { "label": "Find papers on 6M0J", "prompt": "summarize literature about PDB ID 6M0J" }
+    { "label": "Get UniProt summary", "prompt": "Give me a UniProt summary for P0DTC2" },
+    { "label": "Find papers on this protein", "prompt": "summarize literature about SARS-CoV-2 Spike Glycoprotein" }
   ]
 }
 
