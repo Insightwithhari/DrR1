@@ -5,6 +5,8 @@ import { PlusIcon, ChevronLeftIcon, DocumentTextIcon, TrashIcon, PencilIcon, Che
 import PDBViewer from '../components/PDBViewer';
 import MarkdownRenderer from '../components/MarkdownRenderer';
 import BlastViewer from '../components/BlastChart';
+import AlphaFoldViewer from '../components/AlphaFoldViewer';
+import UniProtSummary from '../components/UniProtSummary';
 
 const PROJECT_COLORS = ['border-red-500', 'border-sky-500', 'border-amber-500', 'border-emerald-500', 'border-violet-500'];
 
@@ -342,10 +344,14 @@ const EditableContentBlock: React.FC<{
             switch (block.type) {
                 case ContentType.PDB_VIEWER:
                     return <div className="print-bg-white"><PDBViewer pdbId={block.data.pdbId} /></div>;
+                case ContentType.ALPHAFOLD_VIEWER:
+                    return <div className="print-bg-white"><AlphaFoldViewer uniprotId={block.data.uniprotId} /></div>;
                 case ContentType.TEXT:
                     return <MarkdownRenderer content={block.data} />;
                 case ContentType.PUBMED_SUMMARY:
                     return <div className="p-4 my-2 bg-[var(--input-background-color)] print-bg-white rounded-lg border border-[var(--border-color)]"><h3 className="font-bold mb-2 primary-text print-text-black">Literature Summary</h3><MarkdownRenderer content={block.data.summary} /></div>;
+                case ContentType.UNIPROT_SUMMARY:
+                    return <UniProtSummary uniprotId={block.data.uniprotId} summary={block.data.summary} />;
                 case ContentType.BLAST_RESULT:
                     const hits: BlastHit[] = Array.isArray(block.data) ? block.data : [];
                     return (
@@ -367,10 +373,19 @@ const EditableContentBlock: React.FC<{
         switch (block.type) {
             case ContentType.PDB_VIEWER:
                 return <input type="text" value={editData.pdbId} onChange={e => setEditData({ pdbId: e.target.value })} className="w-full bg-[var(--input-background-color)] p-2 rounded-md border border-[var(--border-color)]" />;
+            case ContentType.ALPHAFOLD_VIEWER:
+                 return <input type="text" value={editData.uniprotId} onChange={e => setEditData({ uniprotId: e.target.value })} className="w-full bg-[var(--input-background-color)] p-2 rounded-md border border-[var(--border-color)]" />;
             case ContentType.TEXT:
                 return <textarea value={editData} onChange={e => setEditData(e.target.value)} rows={5} className="w-full bg-[var(--input-background-color)] p-2 rounded-md border border-[var(--border-color)]" />;
             case ContentType.PUBMED_SUMMARY:
                 return <textarea value={editData.summary} onChange={e => setEditData({ summary: e.target.value })} rows={8} className="w-full bg-[var(--input-background-color)] p-2 rounded-md border border-[var(--border-color)]" />;
+            case ContentType.UNIPROT_SUMMARY:
+                return (
+                    <div className="space-y-2">
+                        <input type="text" value={editData.uniprotId} onChange={e => setEditData({ ...editData, uniprotId: e.target.value })} placeholder="UniProt ID" className="w-full bg-[var(--input-background-color)] p-2 rounded-md border border-[var(--border-color)]" />
+                        <textarea value={editData.summary} onChange={e => setEditData({ ...editData, summary: e.target.value })} rows={6} placeholder="Summary" className="w-full bg-[var(--input-background-color)] p-2 rounded-md border border-[var(--border-color)]" />
+                    </div>
+                );
             case ContentType.BLAST_RESULT:
                 const handleBlastDataChange = (value: string) => {
                     setRawJsonText(value);
