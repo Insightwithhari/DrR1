@@ -86,67 +86,78 @@ const ChatbotPage: React.FC = () => {
   }, []);
 
   const parseAndRenderResponse = useCallback((rawContent: string) => {
+    let response: AiResponse | null = null;
+
     try {
-        // FIX: Upgraded JSON parsing to be more robust. It can now handle JSON
-        // wrapped in markdown code blocks (```json ... ```) or with other text.
-        const jsonRegex = /```json\s*(\{[\s\S]*?\})\s*```|(\{[\s\S]*?\})/;
-        const match = rawContent.match(jsonRegex);
-        if (!match) throw new Error("No valid JSON object found in the response.");
-        
-        // The regex captures the JSON part in either group 1 (with backticks) or group 2 (without).
-        const jsonString = match[1] || match[2];
-        const response: AiResponse = JSON.parse(jsonString);
-
-        const componentParts: React.ReactNode[] = [];
-
-        if (response.prose) {
-            componentParts.push(<MarkdownRenderer key="prose" content={response.prose} />);
-        }
-
-        if (response.tool_calls) {
-            response.tool_calls.forEach((tool_call, index) => {
-                try {
-                    const { type, data } = tool_call;
-                    const contentBlock: ContentBlock = { id: `tool-${Date.now()}-${index}`, type, data };
-                    let contentWithCaption: React.ReactNode = null;
-
-                    switch (type) {
-                        case ContentType.PDB_VIEWER:
-                            const sourceName = data.source === 'alphafold' ? 'AlphaFold DB' : 'RCSB PDB';
-                            const captionText = `${sourceName}: ${data.id}`;
-                            contentWithCaption = (<div><Caption text={captionText} /><PDBViewer id={data.id} source={data.source} /></div>);
-                            break;
-                        case ContentType.PUBMED_SUMMARY:
-                            contentWithCaption = (<div className="p-4 bg-[var(--input-background-color)] rounded-lg border border-[var(--border-color)]"><Caption text="Literature Summary" /><h3 className="font-bold mb-2 primary-text">Summary</h3><MarkdownRenderer content={data.summary} /></div>);
-                            break;
-                        case ContentType.BLAST_RESULT:
-                            contentWithCaption = (<div className="p-4 bg-[var(--input-background-color)] rounded-lg border border-[var(--border-color)]"><Caption text="BLAST Results" />{Array.isArray(data) ? <BlastViewer data={data} /> : <pre className="whitespace-pre-wrap text-xs">{JSON.stringify(data, null, 2)}</pre>}</div>);
-                            break;
-                    }
-                    
-                    if (contentWithCaption) {
-                         componentParts.push(
-                            <div key={contentBlock.id} className="relative group my-2 first:mt-0 last:mb-0">
-                                {contentWithCaption}
-                                <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                                    <button onClick={() => handleSaveContent(contentBlock)} className="p-1.5 bg-slate-700/80 text-white rounded-full hover:bg-slate-600"><PinIcon /></button>
-                                    <button onClick={() => handleShareContent(contentBlock)} className="p-1.5 bg-slate-700/80 text-white rounded-full hover:bg-slate-600"><ShareIcon /></button>
-                                </div>
-                            </div>
-                        );
-                    }
-                } catch (renderError) {
-                    console.error("Error rendering tool_call:", tool_call, renderError);
-                    componentParts.push(<div key={`error-${index}`} className="text-red-500 text-sm">Error displaying tool output.</div>);
-                }
-            });
-        }
-        return <div>{componentParts}</div>;
-
+        // First, try a direct parse, assuming the response is clean JSON.
+        response = JSON.parse(rawContent);
     } catch (e) {
-        console.error("Failed to parse AI response as JSON:", e, "Raw content:", rawContent);
+        // If direct parsing fails, search for a JSON object within the string.
+        // This handles cases where the AI wraps the JSON in markdown or adds extra text.
+        const jsonMatch = rawContent.match(/{[\s\S]*?}/);
+        if (jsonMatch) {
+            try {
+                response = JSON.parse(jsonMatch[0]);
+            } catch (jsonError) {
+                console.error("Found a JSON-like object, but it was invalid:", jsonError);
+            }
+        }
+    }
+
+    // If no valid JSON could be extracted, render the raw content as a fallback.
+    if (!response) {
+        console.error("Could not parse or find valid JSON in the response. Displaying raw text.", rawContent);
         return <MarkdownRenderer content={rawContent} />;
     }
+    
+    // --- If parsing was successful, render the components ---
+
+    const componentParts: React.ReactNode[] = [];
+
+    if (response.prose) {
+        componentParts.push(<MarkdownRenderer key="prose" content={response.prose} />);
+    }
+
+    if (response.tool_calls) {
+        response.tool_calls.forEach((tool_call, index) => {
+            try {
+                const { type, data } = tool_call;
+                const contentBlock: ContentBlock = { id: `tool-${Date.now()}-${index}`, type, data };
+                let contentWithCaption: React.ReactNode = null;
+
+                switch (type) {
+                    case ContentType.PDB_VIEWER:
+                        const sourceName = data.source === 'alphafold' ? 'AlphaFold DB' : 'RCSB PDB';
+                        const captionText = `${sourceName}: ${data.id}`;
+                        contentWithCaption = (<div><Caption text={captionText} /><PDBViewer id={data.id} source={data.source} /></div>);
+                        break;
+                    case ContentType.PUBMED_SUMMARY:
+                        contentWithCaption = (<div className="p-4 bg-[var(--input-background-color)] rounded-lg border border-[var(--border-color)]"><Caption text="Literature Summary" /><h3 className="font-bold mb-2 primary-text">Summary</h3><MarkdownRenderer content={data.summary} /></div>);
+                        break;
+                    case ContentType.BLAST_RESULT:
+                        contentWithCaption = (<div className="p-4 bg-[var(--input-background-color)] rounded-lg border border-[var(--border-color)]"><Caption text="BLAST Results" />{Array.isArray(data) ? <BlastViewer data={data} /> : <pre className="whitespace-pre-wrap text-xs">{JSON.stringify(data, null, 2)}</pre>}</div>);
+                        break;
+                }
+                
+                if (contentWithCaption) {
+                     componentParts.push(
+                        <div key={contentBlock.id} className="relative group my-2 first:mt-0 last:mb-0">
+                            {contentWithCaption}
+                            <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                <button onClick={() => handleSaveContent(contentBlock)} className="p-1.5 bg-slate-700/80 text-white rounded-full hover:bg-slate-600"><PinIcon /></button>
+                                <button onClick={() => handleShareContent(contentBlock)} className="p-1.5 bg-slate-700/80 text-white rounded-full hover:bg-slate-600"><ShareIcon /></button>
+                            </div>
+                        </div>
+                    );
+                }
+            } catch (renderError) {
+                console.error("Error rendering tool_call:", tool_call, renderError);
+                componentParts.push(<div key={`error-${index}`} className="text-red-500 text-sm">Error displaying tool output.</div>);
+            }
+        });
+    }
+    return <div>{componentParts}</div>;
+
   }, [handleSaveContent, handleShareContent]);
 
   const rehydrateMessages = useCallback((storedMessages: any[]) => {
