@@ -152,7 +152,7 @@ const ChatbotPage: React.FC = () => {
                 switch (type) {
                     case ContentType.PDB_VIEWER:
                         const sourceName = data.source === 'alphafold' ? 'AlphaFold DB' : 'RCSB PDB';
-                        const captionText = `${sourceName}: ${data.id}`;
+                        const captionText = `${data.name || data.id} from ${sourceName}`;
                         contentWithCaption = (<div><Caption text={captionText} /><PDBViewer id={data.id} source={data.source} /></div>);
                         break;
                     case ContentType.PUBMED_SUMMARY:
