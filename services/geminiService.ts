@@ -49,7 +49,7 @@ export async function sendMessageWithSearch(message: string): Promise<GenerateCo
 
 // --- EMBL-EBI BLAST Service ---
 // NOTE: A CORS proxy is used for client-side API calls to EMBL-EBI.
-const PROXY_URL = 'https://cors.sh/';
+const PROXY_URL = 'https://thingproxy.freeboard.io/fetch/';
 const EBI_API_URL = 'https://www.ebi.ac.uk/Tools/services/rest/ncbiblast';
 const EMAIL = 'test@example.com'; // A generic email is required by the API.
 
