@@ -4,27 +4,33 @@ import { DownloadIcon, WhatsAppIcon } from './icons';
 declare const $3Dmol: any;
 
 interface PDBViewerProps {
-  pdbId: string;
+  id: string;
+  source: 'rcsb' | 'alphafold';
 }
 
-const PDBViewer: React.FC<PDBViewerProps> = ({ pdbId }) => {
+const PDBViewer: React.FC<PDBViewerProps> = ({ id, source }) => {
   const viewerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let viewer: any = null;
-    if (viewerRef.current && pdbId) {
+    if (viewerRef.current && id) {
       setIsLoading(true);
       setError(null);
+      
       const element = viewerRef.current;
       const config = { backgroundColor: 'black' };
       viewer = $3Dmol.createViewer(element, config);
 
-      fetch(`https://files.rcsb.org/view/${pdbId}.pdb`)
+      const url = source === 'alphafold'
+        ? `https://alphafold.ebi.ac.uk/files/AF-${id}-F1-model_v4.pdb`
+        : `https://files.rcsb.org/view/${id}.pdb`;
+
+      fetch(url)
         .then((res) => {
           if (!res.ok) {
-            throw new Error(`Failed to fetch PDB data for ${pdbId}. Status: ${res.status}`);
+            throw new Error(`Failed to fetch PDB data for ${id} from ${source}. Status: ${res.status}`);
           }
           return res.text();
         })
@@ -33,14 +39,14 @@ const PDBViewer: React.FC<PDBViewerProps> = ({ pdbId }) => {
           viewer.setStyle({}, { cartoon: { color: 'spectrum' } });
           viewer.zoomTo();
           viewer.render(() => {
-            // Adjust zoom after initial render for a better default view
             viewer.zoom(0.8);
           });
           setIsLoading(false);
         })
         .catch((err) => {
           console.error("PDB fetch error:", err);
-          setError(`Could not load PDB structure for ID: ${pdbId}. Please ensure it's a valid ID.`);
+          const dbName = source === 'alphafold' ? 'AlphaFold DB' : 'RCSB PDB';
+          setError(`Could not load structure for ID: ${id} from ${dbName}. Please ensure it's a valid ID.`);
           setIsLoading(false);
         });
     }
@@ -50,28 +56,36 @@ const PDBViewer: React.FC<PDBViewerProps> = ({ pdbId }) => {
         viewer.clear();
       }
     };
-  }, [pdbId]);
+  }, [id, source]);
   
   const handleDownload = () => {
-    fetch(`https://files.rcsb.org/view/${pdbId}.pdb`)
+    const url = source === 'alphafold'
+      ? `https://alphafold.ebi.ac.uk/files/AF-${id}-F1-model_v4.pdb`
+      : `https://files.rcsb.org/view/${id}.pdb`;
+    const filename = source === 'alphafold' ? `AF-${id}-model_v4.pdb` : `${id}.pdb`;
+
+    fetch(url)
       .then(res => res.text())
       .then(data => {
         const blob = new Blob([data], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
+        const downloadUrl = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url;
-        a.download = `${pdbId}.pdb`;
+        a.href = downloadUrl;
+        a.download = filename;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        URL.revokeObjectURL(downloadUrl);
       })
       .catch(err => console.error("Download error:", err));
   };
 
   const handleWhatsAppShare = () => {
-    const text = `Check out this protein structure on RCSB PDB: ${pdbId}`;
-    const url = `https://www.rcsb.org/structure/${pdbId}`;
+    const dbName = source === 'alphafold' ? "AlphaFold DB" : "RCSB PDB";
+    const text = `Check out this protein structure on ${dbName}: ${id}`;
+    const url = source === 'alphafold' 
+      ? `https://alphafold.ebi.ac.uk/entry/${id}`
+      : `https://www.rcsb.org/structure/${id}`;
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${text}\n${url}`)}`;
     window.open(whatsappUrl, '_blank');
   };
