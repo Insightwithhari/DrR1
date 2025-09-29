@@ -219,7 +219,7 @@ const ChatbotPage: React.FC = () => {
             sequence,
         });
 
-        const jobUrl = `https://www.ebi.ac.uk/Tools/services/web/toolresult.ebi?jobId=${jobId}`;
+        const jobUrl = `https://www.ebi.ac.uk/jdispatcher/results/${jobId}`;
         setMessages(prev => prev.map(m => m.id === statusMessage.id
             ? { ...m, content: <MarkdownRenderer content={`Job submitted ([view on EMBL-EBI](${jobUrl})). Waiting for results...`} />, rawContent: `Job submitted. ID: ${jobId}. Waiting...` }
             : m
@@ -256,16 +256,14 @@ const ChatbotPage: React.FC = () => {
       const blastRegex = /perform\s+blast/i;
       const isBlastRequest = blastRegex.test(finalPrompt);
 
-      // If the user wants to BLAST, handle it here and exit. This prevents fallback to web search.
       if (isBlastRequest) {
-        const sequenceRegex = /([A-Z\s]{15,})/; // Check for at least 15 residues
+        const sequenceRegex = /([A-Z\s]{15,})/;
         const sequenceMatch = finalPrompt.match(sequenceRegex);
 
         if (sequenceMatch) {
           const sequence = sequenceMatch[1].replace(/\s/g, '');
           handleBlastRequest(sequence);
         } else {
-          // Add user's message to chat so they see what they typed, then show an error.
           const displayedMessage = messageContent || `Uploaded ${file?.name}`;
           const newUserMessage: Message = { 
               id: Date.now().toString(), 
@@ -283,7 +281,6 @@ const ChatbotPage: React.FC = () => {
           setMessages(prev => [...prev, newUserMessage, errorMsg]);
         }
         
-        // Clean up input fields and stop further processing for this message
         setInput('');
         setReplyingTo(null);
         return;
@@ -452,7 +449,7 @@ const ChatbotPage: React.FC = () => {
                 if (!monitoredJobs[jobId]) return; // Job might have been removed
                 const status = await checkJobStatus(jobId);
                 const { statusMessageId } = monitoredJobs[jobId];
-                const jobUrl = `https://www.ebi.ac.uk/Tools/services/web/toolresult.ebi?jobId=${jobId}`;
+                const jobUrl = `https://www.ebi.ac.uk/jdispatcher/results/${jobId}`;
 
                 if (status === 'FINISHED') {
                     setMonitoredJobs(prev => { const newJobs = { ...prev }; delete newJobs[jobId]; return newJobs; });
@@ -569,7 +566,6 @@ const ChatbotPage: React.FC = () => {
         input={input}
         setInput={setInput}
         isRecording={isRecording}
-        // FIX: The prop was expecting `handleToggleRecording`, not `onToggleRecording` which is undefined in this scope.
         onToggleRecording={handleToggleRecording}
         isSpeechSupported={isSpeechSupported}
         replyingTo={replyingTo}
