@@ -340,7 +340,6 @@ const EditableContentBlock: React.FC<{
     const renderDisplayView = () => {
         try {
             switch (block.type) {
-                // FIX: Pass 'id' and 'source' props to PDBViewer instead of 'pdbId'.
                 case ContentType.PDB_VIEWER:
                     return <div className="print-bg-white"><PDBViewer id={block.data.id} source={block.data.source} /></div>;
                 case ContentType.TEXT:
@@ -366,26 +365,38 @@ const EditableContentBlock: React.FC<{
 
     const renderEditView = () => {
         switch (block.type) {
-            // FIX: Updated edit view for PDBViewer to handle 'id' and 'source' properties.
             case ContentType.PDB_VIEWER:
                 return (
-                    <div>
-                        <label className="text-xs text-[var(--muted-foreground-color)]">ID (PDB or UniProt)</label>
-                        <input
-                            type="text"
-                            value={editData.id || ''}
-                            onChange={e => setEditData({ ...editData, id: e.target.value })}
-                            className="w-full bg-[var(--input-background-color)] p-2 rounded-md border border-[var(--border-color)] mb-2"
-                        />
-                        <label className="text-xs text-[var(--muted-foreground-color)]">Source</label>
-                        <select
-                            value={editData.source || 'rcsb'}
-                            onChange={e => setEditData({ ...editData, source: e.target.value as 'rcsb' | 'alphafold' })}
-                            className="w-full bg-[var(--input-background-color)] p-2 rounded-md border border-[var(--border-color)]"
-                        >
-                            <option value="rcsb">RCSB PDB</option>
-                            <option value="alphafold">AlphaFold</option>
-                        </select>
+                    <div className="space-y-2">
+                        <div>
+                            <label className="text-xs font-medium text-[var(--muted-foreground-color)]">ID (PDB or UniProt)</label>
+                            <input
+                                type="text"
+                                value={editData.id || ''}
+                                onChange={e => setEditData({ ...editData, id: e.target.value })}
+                                className="w-full bg-[var(--input-background-color)] p-2 rounded-md border border-[var(--border-color)]"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-medium text-[var(--muted-foreground-color)]">Source</label>
+                            <select
+                                value={editData.source || 'rcsb'}
+                                onChange={e => setEditData({ ...editData, source: e.target.value as 'rcsb' | 'alphafold' })}
+                                className="w-full bg-[var(--input-background-color)] p-2 rounded-md border border-[var(--border-color)]"
+                            >
+                                <option value="rcsb">RCSB PDB</option>
+                                <option value="alphafold">AlphaFold</option>
+                            </select>
+                        </div>
+                        <div>
+                           <label className="text-xs font-medium text-[var(--muted-foreground-color)]">Display Name (Optional)</label>
+                           <input
+                                type="text"
+                                value={editData.name || ''}
+                                onChange={e => setEditData({ ...editData, name: e.target.value })}
+                                className="w-full bg-[var(--input-background-color)] p-2 rounded-md border border-[var(--border-color)]"
+                            />
+                        </div>
                     </div>
                 );
             case ContentType.TEXT:
