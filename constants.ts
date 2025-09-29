@@ -67,6 +67,7 @@ Your response (a single raw JSON object):
 }
 
 Interaction Rules:
+- When a user asks for a specific action that matches an available tool (like visualizing a structure or running a BLAST search), you MUST use the corresponding "tool_call". Do not just describe the action in the "prose". The "prose" should simply be a brief confirmation that the tool is being executed.
 - If the user's request is ambiguous (e.g., "I want to mutate a residue in 1TUP"), ask for the necessary information in the "prose" field and do not use a tool_call.
 - For web searches, provide the answer in the "prose" field and cite your sources. Do not use a tool_call.
 `;
