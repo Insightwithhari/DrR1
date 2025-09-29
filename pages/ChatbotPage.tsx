@@ -254,17 +254,41 @@ const ChatbotPage: React.FC = () => {
       }
       
       const blastRegex = /perform\s+blast/i;
-      const sequenceRegex = /([A-Z\s]{20,})/;
       const isBlastRequest = blastRegex.test(finalPrompt);
-      const sequenceMatch = finalPrompt.match(sequenceRegex);
 
-      if (isBlastRequest && sequenceMatch) {
+      // If the user wants to BLAST, handle it here and exit. This prevents fallback to web search.
+      if (isBlastRequest) {
+        const sequenceRegex = /([A-Z\s]{15,})/; // Check for at least 15 residues
+        const sequenceMatch = finalPrompt.match(sequenceRegex);
+
+        if (sequenceMatch) {
           const sequence = sequenceMatch[1].replace(/\s/g, '');
           handleBlastRequest(sequence);
-          setInput('');
-          setReplyingTo(null);
-          return;
+        } else {
+          // Add user's message to chat so they see what they typed, then show an error.
+          const displayedMessage = messageContent || `Uploaded ${file?.name}`;
+          const newUserMessage: Message = { 
+              id: Date.now().toString(), 
+              author: MessageAuthor.USER, 
+              content: <MarkdownRenderer content={displayedMessage} />, 
+              rawContent: displayedMessage,
+              replyTo: replyToMessage ? { id: replyToMessage.id, author: replyToMessage.author === MessageAuthor.USER ? "you" : "Dr. Rhesus", content: replyToMessage.rawContent || ''} : undefined
+          };
+          const errorMsg: Message = { 
+            id: `error-${Date.now()}`, 
+            author: MessageAuthor.SYSTEM, 
+            content: <>BLAST requires a valid protein sequence of at least 15 amino acids.</>, 
+            rawContent: "BLAST requires a valid protein sequence of at least 15 amino acids." 
+          };
+          setMessages(prev => [...prev, newUserMessage, errorMsg]);
+        }
+        
+        // Clean up input fields and stop further processing for this message
+        setInput('');
+        setReplyingTo(null);
+        return;
       }
+
 
       if (!finalPrompt.trim()) return;
       
