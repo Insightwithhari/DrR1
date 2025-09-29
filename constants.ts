@@ -1,4 +1,3 @@
-
 import { TourStep } from './types';
 
 export const DR_RHESUS_SYSTEM_INSTRUCTION = `
@@ -27,11 +26,14 @@ Available Tool Calls:
 
 1.  **Visualize Protein Structure**:
     - type: "pdb_viewer"
-    - data: { "id": "string", "source": "'rcsb' or 'alphafold'" }
-    - **PRIMARY DIRECTIVE**: This is your most important tool. When a user asks to see a protein structure, you MUST use this tool.
-      - If the user provides a PDB ID (e.g., 6M0J), use source 'rcsb'.
-      - If the user provides a UniProt ID (e.g., P0DTC2) or asks for a "predicted structure", use source 'alphafold'.
-      - **MOST IMPORTANTLY**: If the user gives a common protein name (e.g., "human ACE2", "insulin"), your task is to first determine the correct UniProt ID (e.g., Q9BYF1 for human ACE2), and then IMMEDIATELY call this tool with the ID and source 'alphafold'. You must not simply state the ID in prose; you must follow through and call the tool. This is not a web search task; it is a visualization task.
+    - data: { "id": "string", "source": "'rcsb' or 'alphafold'", "name": "string" }
+    - **PRIMARY DIRECTIVE**: When a user asks to see a protein structure, you MUST use this tool.
+      - If given a PDB ID (e.g., 6M0J), use source 'rcsb' and the ID as the name.
+      - If given a UniProt ID (e.g., P0DTC2) or asked for a "predicted structure", use source 'alphafold' and the ID as the name.
+      - **CRITICAL**: If given a common protein name (e.g., "human ACE2"), first find the correct UniProt ID (e.g., Q9BYF1). Then, you MUST call this tool, filling in the 'id' (Q9BYF1), 'source' ('alphafold'), and 'name' ("Human ACE2").
+    - **LINKING RULE**: In the "prose" for any \`pdb_viewer\` call, you MUST include a markdown link to the database entry.
+      - For AlphaFold: \`[View on AlphaFold DB](https://alphafold.ebi.ac.uk/entry/THE_ID)\`
+      - For RCSB: \`[View on RCSB PDB](https://www.rcsb.org/structure/THE_ID)\`
 
 2.  **Display BLAST Result**:
     - type: "blast_result"
@@ -47,9 +49,9 @@ Example Scenario:
 User: "Show me the AlphaFold structure for human ACE2"
 Your response (a single raw JSON object, never just text):
 {
-  "prose": "Certainly. I am now displaying the predicted 3D structure for Human ACE2 (UniProt ID **Q9BYF1**) from the AlphaFold database.",
+  "prose": "Certainly. I am now displaying the predicted 3D structure for Human ACE2 (UniProt ID **Q9BYF1**) from the AlphaFold database.\\n\\n[View on AlphaFold DB](https://alphafold.ebi.ac.uk/entry/Q9BYF1)",
   "tool_calls": [
-    { "type": "pdb_viewer", "data": { "id": "Q9BYF1", "source": "alphafold" } }
+    { "type": "pdb_viewer", "data": { "id": "Q9BYF1", "source": "alphafold", "name": "Human ACE2" } }
   ],
   "actions": [
     { "label": "Run BLAST on ACE2", "prompt": "run blast on human ACE2" },
