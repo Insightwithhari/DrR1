@@ -1,6 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { Chat } from '@google/genai';
-import { createChatSession, sendMessage, sendMessageWithSearch } from '../services/geminiService';
+import {
+  createChatSession,
+  sendMessage,
+  sendMessageWithSearch,
+  submitBlastJob,
+  checkJobStatus,
+  getBlastResults,
+  summarizeBlastResults
+} from '../services/geminiService';
 import { Message, MessageAuthor, ContentType, Project, Snapshot, BlastHit, ContentBlock, Pipeline, AiResponse, ToolCall, RecentChat } from '../types';
 import { GREETINGS } from '../constants';
 import { useAppContext } from '../App';
@@ -37,6 +45,7 @@ const ChatbotPage: React.FC = () => {
   // New Feature States
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+  const [monitoredJobs, setMonitoredJobs] = useState<Record<string, { statusMessageId: string }>>({});
 
   // Modals State
   const [isProjectModalOpen, setProjectModalOpen] = useState(false);
@@ -57,7 +66,7 @@ const ChatbotPage: React.FC = () => {
             return p;
         })
     );
-    const systemMessage: Message = { id: `sys-${Date.now()}`, author: MessageAuthor.SYSTEM, content: `Content saved to project: "${activeProjectName}"`, rawContent: `Content saved to project: "${activeProjectName}"` };
+    const systemMessage: Message = { id: `sys-${Date.now()}`, author: MessageAuthor.SYSTEM, content: <>{`Content saved to project: "${activeProjectName}"`}</>, rawContent: `Content saved to project: "${activeProjectName}"` };
     setMessages(prev => [...prev, systemMessage]);
   }, [activeProjectId, activeProjectName, setProjects]);
   
@@ -187,8 +196,49 @@ const ChatbotPage: React.FC = () => {
   const isLoadingRef = useRef(isLoading);
   useEffect(() => { isLoadingRef.current = isLoading; }, [isLoading]);
 
+  const handleBlastRequest = useCallback(async (sequence: string) => {
+    setIsLoading(true);
+    const userMessage: Message = {
+        id: `user-${Date.now()}`,
+        author: MessageAuthor.USER,
+        content: <MarkdownRenderer content={`Perform BLAST on sequence:\n\`\`\`\n${sequence.substring(0, 100)}...\n\`\`\``} />,
+        rawContent: `Perform BLAST on sequence: ${sequence}`
+    };
+    const statusMessage: Message = {
+        id: `job-status-${Date.now()}`,
+        author: MessageAuthor.SYSTEM,
+        content: <>Submitting BLAST job to EMBL-EBI...</>,
+        rawContent: 'Submitting BLAST job to EMBL-EBI...'
+    };
+    setMessages(prev => [...prev, userMessage, statusMessage]);
+
+    try {
+        const jobId = await submitBlastJob({
+            program: 'blastp',
+            database: 'uniprotkb',
+            sequence,
+        });
+
+        const jobUrl = `https://www.ebi.ac.uk/Tools/services/web/toolresult.ebi?jobId=${jobId}`;
+        setMessages(prev => prev.map(m => m.id === statusMessage.id
+            ? { ...m, content: <MarkdownRenderer content={`Job submitted ([view on EMBL-EBI](${jobUrl})). Waiting for results...`} />, rawContent: `Job submitted. ID: ${jobId}. Waiting...` }
+            : m
+        ));
+
+        setMonitoredJobs(prev => ({ ...prev, [jobId]: { statusMessageId: statusMessage.id } }));
+
+    } catch (error: any) {
+        const errorMsg: Message = { id: `error-${Date.now()}`, author: MessageAuthor.SYSTEM, content: <>{`Failed to submit BLAST job: ${error.message}`}</>, rawContent: `Failed to submit BLAST job: ${error.message}` };
+        setMessages(prev => [...prev, errorMsg]);
+        setIsLoading(false);
+    }
+  }, []);
+
   const handleSendMessage = useCallback(async (messageContent: string, file?: File, replyToMessage?: Message | null): Promise<void> => {
-      if (!chat || isLoadingRef.current) return;
+      if (!chat && !messageContent.toLowerCase().includes('blast')) {
+        return;
+      }
+      if (isLoadingRef.current) return;
       
       let finalPrompt = messageContent;
       if (file) {
@@ -203,10 +253,23 @@ const ChatbotPage: React.FC = () => {
           finalPrompt = `In reply to "${replyToMessage.rawContent}", ${finalPrompt}`;
       }
       
+      const blastRegex = /perform\s+blast/i;
+      const sequenceRegex = /([A-Z\s]{20,})/;
+      const isBlastRequest = blastRegex.test(finalPrompt);
+      const sequenceMatch = finalPrompt.match(sequenceRegex);
+
+      if (isBlastRequest && sequenceMatch) {
+          const sequence = sequenceMatch[1].replace(/\s/g, '');
+          handleBlastRequest(sequence);
+          setInput('');
+          setReplyingTo(null);
+          return;
+      }
+
       if (!finalPrompt.trim()) return;
       
       const isStartingANewConversation = isNewChat;
-      setIsNewChat(false); // Any message sent makes it an existing chat
+      setIsNewChat(false);
 
       const displayedMessage = messageContent || `Uploaded ${file?.name}`;
       const newUserMessage: Message = { 
@@ -233,14 +296,51 @@ const ChatbotPage: React.FC = () => {
       }
 
       try {
-          const fullResponse = await sendMessage(chat, finalPrompt);
-
+          const isWebSearch = finalPrompt.toLowerCase().includes('blast');
+          let fullResponse: string;
           let actions: any[] = [];
-          try {
-              const parsed: AiResponse = JSON.parse(fullResponse);
-              actions = parsed.actions || [];
-          } catch (e) { /* Ignore if not valid JSON */ }
 
+          if (isWebSearch) {
+              const response = await sendMessageWithSearch(finalPrompt);
+              setApiStatus('healthy');
+              let prose = response.text;
+              const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
+              if (groundingMetadata?.groundingChunks) {
+                  const uniqueUrls = new Set<string>();
+                  const citations = groundingMetadata.groundingChunks
+                      .map((chunk: any) => chunk.web)
+                      .filter(Boolean)
+                      .filter((web: any) => {
+                          if (!web.uri || uniqueUrls.has(web.uri)) return false;
+                          uniqueUrls.add(web.uri);
+                          return true;
+                      })
+                      .map((web: any, index: number) => `${index + 1}. [${web.title || web.uri}](${web.uri})`)
+                      .join('\n');
+                  if (citations) {
+                      prose += `\n\n**Sources:**\n${citations}`;
+                  }
+              }
+              const syntheticResponseObject: AiResponse = {
+                  prose: prose,
+                  tool_calls: [],
+                  actions: [
+                      { label: "Summarize the first source", prompt: "Please summarize the first source you provided." },
+                      { label: "What is an E-value?", prompt: "What is an E-value in BLAST search?" }
+                  ]
+              };
+              fullResponse = JSON.stringify(syntheticResponseObject);
+              actions = syntheticResponseObject.actions || [];
+          } else {
+              if (!chat) throw new Error("Chat session not available.");
+              fullResponse = await sendMessage(chat, finalPrompt);
+              try {
+                  const parsed: AiResponse = JSON.parse(fullResponse);
+                  actions = parsed.actions || [];
+              } catch (e) { /* Ignore if not valid JSON */ }
+              setApiStatus('healthy');
+          }
+          
           const rhesusMessage: Message = {
             id: `rhesus-${Date.now()}`,
             author: MessageAuthor.RHESUS,
@@ -250,15 +350,15 @@ const ChatbotPage: React.FC = () => {
           };
 
           setMessages(prev => [...prev, rhesusMessage]);
-          setApiStatus('healthy');
+
       } catch (error) {
           setApiStatus('error');
-          const errorMsg: Message = { id: `error-${Date.now()}`, author: MessageAuthor.SYSTEM, content: "Sorry, an error occurred communicating with the AI.", rawContent: "Sorry, an error occurred communicating with the AI." };
+          const errorMsg: Message = { id: `error-${Date.now()}`, author: MessageAuthor.SYSTEM, content: <>Sorry, an error occurred communicating with the AI.</>, rawContent: "Sorry, an error occurred communicating with the AI." };
           setMessages(prev => [...prev, errorMsg]);
       } finally {
           setIsLoading(false);
       }
-  }, [chat, setApiStatus, parseAndRenderResponse, activeProjectId, activeProjectName, recentChats, setRecentChats, isNewChat, setIsNewChat]);
+  }, [chat, setApiStatus, parseAndRenderResponse, activeProjectId, activeProjectName, recentChats, setRecentChats, isNewChat, setIsNewChat, handleBlastRequest]);
 
   const handleSendMessageRef = useRef(handleSendMessage);
   useEffect(() => { handleSendMessageRef.current = handleSendMessage; }, [handleSendMessage]);
@@ -319,8 +419,56 @@ const ChatbotPage: React.FC = () => {
   }, [historyKey, rehydrateMessages, isNewChat]);
 
   useEffect(() => {
+    const jobIds = Object.keys(monitoredJobs);
+    if (jobIds.length === 0) return;
+
+    const intervalId = setInterval(() => {
+        jobIds.forEach(async (jobId) => {
+            try {
+                if (!monitoredJobs[jobId]) return; // Job might have been removed
+                const status = await checkJobStatus(jobId);
+                const { statusMessageId } = monitoredJobs[jobId];
+                const jobUrl = `https://www.ebi.ac.uk/Tools/services/web/toolresult.ebi?jobId=${jobId}`;
+
+                if (status === 'FINISHED') {
+                    setMonitoredJobs(prev => { const newJobs = { ...prev }; delete newJobs[jobId]; return newJobs; });
+                    setMessages(prev => prev.map(m => m.id === statusMessageId ? { ...m, content: <MarkdownRenderer content={`Job [${jobId}](${jobUrl}) finished. Analyzing results...`} />, rawContent: `Job ${jobId} finished. Analyzing results...` } : m));
+                    
+                    const results = await getBlastResults(jobId);
+                    const summaryJsonString = await summarizeBlastResults(results);
+                    const summaryResponse: AiResponse = JSON.parse(summaryJsonString);
+                    const proseWithLink = `${summaryResponse.prose}\n\n[View full results on EMBL-EBI](${jobUrl})`;
+                    
+                    const summaryMessage: Message = {
+                        id: `rhesus-blast-${jobId}`,
+                        author: MessageAuthor.RHESUS,
+                        content: parseAndRenderResponse(JSON.stringify({ prose: proseWithLink })),
+                        rawContent: JSON.stringify({ prose: proseWithLink }),
+                    };
+                    setMessages(prev => [...prev, summaryMessage]);
+                    setIsLoading(false);
+
+                } else if (status === 'RUNNING') {
+                    setMessages(prev => prev.map(m => m.id === statusMessageId ? { ...m, content: <MarkdownRenderer content={`Job is running. [View progress on EMBL-EBI](${jobUrl})`} />, rawContent: `Job is running. View progress: ${jobUrl}` } : m));
+                } else if (status !== 'PENDING') {
+                    setMonitoredJobs(prev => { const newJobs = { ...prev }; delete newJobs[jobId]; return newJobs; });
+                    setMessages(prev => prev.map(m => m.id === statusMessageId ? { ...m, content: <MarkdownRenderer content={`Job [${jobId}](${jobUrl}) failed or expired (status: ${status}).`} />, rawContent: `Job ${jobId} failed or expired (status: ${status}).` } : m));
+                    setIsLoading(false);
+                }
+            } catch (error) {
+                console.error(`Error polling job ${jobId}:`, error);
+                setMonitoredJobs(prev => { const newJobs = { ...prev }; delete newJobs[jobId]; return newJobs; });
+                setIsLoading(false);
+            }
+        });
+    }, 10000); // Poll every 10 seconds
+
+    return () => clearInterval(intervalId);
+  }, [monitoredJobs, parseAndRenderResponse]);
+
+  useEffect(() => {
     const initialQuery = sessionStorage.getItem('initialQuery');
-    if (initialQuery && chat) {
+    if (initialQuery && (chat || initialQuery.toLowerCase().includes('blast'))) {
         sessionStorage.removeItem('initialQuery');
         handleSendMessage(initialQuery);
     }
@@ -362,7 +510,7 @@ const ChatbotPage: React.FC = () => {
     setContentToSave(null);
     const savedProject = projects.find(p => p.id === projectId);
     if (savedProject) {
-        const systemMessage: Message = { id: `sys-${Date.now()}`, author: MessageAuthor.SYSTEM, content: `Content saved to project: "${savedProject.title}"`, rawContent: `Content saved to project: "${savedProject.title}"` };
+        const systemMessage: Message = { id: `sys-${Date.now()}`, author: MessageAuthor.SYSTEM, content: <>{`Content saved to project: "${savedProject.title}"`}</>, rawContent: `Content saved to project: "${savedProject.title}"` };
         setMessages(prev => [...prev, systemMessage]);
     }
   };
@@ -370,13 +518,13 @@ const ChatbotPage: React.FC = () => {
   const handleRunPipeline = async (pipeline: Pipeline, target: string) => {
     if (!target) { alert("Please provide a target for the pipeline (e.g., a protein name or PDB ID)."); return; }
     setPipelineModalOpen(false);
-    const systemMessage: Message = { id: `sys-${Date.now()}`, author: MessageAuthor.SYSTEM, content: `Running pipeline "${pipeline.name}" with target "${target}"...`, rawContent: `Running pipeline "${pipeline.name}" with target "${target}"...` };
+    const systemMessage: Message = { id: `sys-${Date.now()}`, author: MessageAuthor.SYSTEM, content: <>{`Running pipeline "${pipeline.name}" with target "${target}"...`}</>, rawContent: `Running pipeline "${pipeline.name}" with target "${target}"...` };
     setMessages(prev => [...prev, systemMessage]);
     for (const step of pipeline.steps) {
         const prompt = step.prompt.replace(/\{protein_name\}/g, target);
         await handleSendMessage(prompt);
     }
-    const completionMessage: Message = { id: `sys-${Date.now()}-done`, author: MessageAuthor.SYSTEM, content: `Pipeline "${pipeline.name}" finished.`, rawContent: `Pipeline "${pipeline.name}" finished.` };
+    const completionMessage: Message = { id: `sys-${Date.now()}-done`, author: MessageAuthor.SYSTEM, content: <>{`Pipeline "${pipeline.name}" finished.`}</>, rawContent: `Pipeline "${pipeline.name}" finished.` };
     setMessages(prev => [...prev, completionMessage]);
   };
   
@@ -384,7 +532,7 @@ const ChatbotPage: React.FC = () => {
     <div className="relative overflow-hidden flex flex-col h-full bg-[var(--background-color)]">
       <ChatWindow 
         messages={messages} 
-        isLoading={isLoading} 
+        isLoading={isLoading || Object.keys(monitoredJobs).length > 0} 
         onPromptClick={(prompt) => handleSendMessage(prompt)}
         onToggleAudio={handleToggleAudio}
         onReply={handleReply}
@@ -392,11 +540,12 @@ const ChatbotPage: React.FC = () => {
       />
       <ChatInput 
         onSendMessage={handleSendMessage} 
-        isLoading={isLoading} 
+        isLoading={isLoading || Object.keys(monitoredJobs).length > 0} 
         onRunPipeline={() => setPipelineModalOpen(true)}
         input={input}
         setInput={setInput}
         isRecording={isRecording}
+        // FIX: The prop was expecting `handleToggleRecording`, not `onToggleRecording` which is undefined in this scope.
         onToggleRecording={handleToggleRecording}
         isSpeechSupported={isSpeechSupported}
         replyingTo={replyingTo}
