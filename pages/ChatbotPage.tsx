@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { Chat } from '@google/genai';
-import { createChatSession, sendMessage, sendMessageWithSearch } from '../services/geminiService';
+import { createChatSession, sendMessage } from '../services/geminiService';
 import { Message, MessageAuthor, ContentType, Project, Snapshot, BlastHit, ContentBlock, Pipeline, AiResponse, ToolCall, RecentChat } from '../types';
 import { GREETINGS } from '../constants';
 import { useAppContext } from '../App';
@@ -11,8 +11,6 @@ import PDBViewer from '../components/PDBViewer';
 import MarkdownRenderer from '../components/MarkdownRenderer';
 import BlastViewer from '../components/BlastChart';
 import { PinIcon, ShareIcon, CheckIcon } from '../components/icons';
-import AlphaFoldViewer from '../components/AlphaFoldViewer';
-import UniProtSummary from '../components/UniProtSummary';
 
 declare const window: any; // For SpeechRecognition
 
@@ -112,12 +110,6 @@ const ChatbotPage: React.FC = () => {
                         case ContentType.PDB_VIEWER:
                             contentWithCaption = (<div><Caption text={`3D Structure: ${data.pdbId}`} /><PDBViewer pdbId={data.pdbId} /></div>);
                             break;
-                        case ContentType.ALPHAFOLD_VIEWER:
-                            contentWithCaption = (<div><Caption text={`AlphaFold Prediction: ${data.uniprotId}`} /><AlphaFoldViewer uniprotId={data.uniprotId} /></div>);
-                            break;
-                        case ContentType.UNIPROT_SUMMARY:
-                            contentWithCaption = (<UniProtSummary uniprotId={data.uniprotId} summary={data.summary} />);
-                            break;
                         case ContentType.PUBMED_SUMMARY:
                             contentWithCaption = (<div className="p-4 bg-[var(--input-background-color)] rounded-lg border border-[var(--border-color)]"><Caption text="Literature Summary" /><h3 className="font-bold mb-2 primary-text">Summary</h3><MarkdownRenderer content={data.summary} /></div>);
                             break;
@@ -187,7 +179,6 @@ const ChatbotPage: React.FC = () => {
     switch (cmd) {
         case '/visualize': return `Show me the 3D structure for PDB ID ${arg}`;
         case '/blast': return `Run a BLAST search for the following: ${arg}`;
-        case '/search': return `Search the web for: ${arg}`;
         default: return command;
     }
   };
