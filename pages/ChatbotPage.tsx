@@ -108,7 +108,9 @@ const ChatbotPage: React.FC = () => {
 
                     switch (type) {
                         case ContentType.PDB_VIEWER:
-                            contentWithCaption = (<div><Caption text={`3D Structure: ${data.pdbId}`} /><PDBViewer pdbId={data.pdbId} /></div>);
+                            const sourceName = data.source === 'alphafold' ? 'AlphaFold DB' : 'RCSB PDB';
+                            const captionText = `${sourceName}: ${data.id}`;
+                            contentWithCaption = (<div><Caption text={captionText} /><PDBViewer id={data.id} source={data.source} /></div>);
                             break;
                         case ContentType.PUBMED_SUMMARY:
                             contentWithCaption = (<div className="p-4 bg-[var(--input-background-color)] rounded-lg border border-[var(--border-color)]"><Caption text="Literature Summary" /><h3 className="font-bold mb-2 primary-text">Summary</h3><MarkdownRenderer content={data.summary} /></div>);
