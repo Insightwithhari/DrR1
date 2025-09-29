@@ -87,12 +87,16 @@ const ChatbotPage: React.FC = () => {
 
   const parseAndRenderResponse = useCallback((rawContent: string) => {
     try {
-        const jsonStart = rawContent.indexOf('{');
-        const jsonEnd = rawContent.lastIndexOf('}');
-        if (jsonStart === -1 || jsonEnd === -1) throw new Error("No JSON object found");
-
-        const jsonString = rawContent.substring(jsonStart, jsonEnd + 1);
+        // FIX: Upgraded JSON parsing to be more robust. It can now handle JSON
+        // wrapped in markdown code blocks (```json ... ```) or with other text.
+        const jsonRegex = /```json\s*(\{[\s\S]*?\})\s*```|(\{[\s\S]*?\})/;
+        const match = rawContent.match(jsonRegex);
+        if (!match) throw new Error("No valid JSON object found in the response.");
+        
+        // The regex captures the JSON part in either group 1 (with backticks) or group 2 (without).
+        const jsonString = match[1] || match[2];
         const response: AiResponse = JSON.parse(jsonString);
+
         const componentParts: React.ReactNode[] = [];
 
         if (response.prose) {
