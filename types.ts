@@ -50,6 +50,8 @@ export enum ContentType {
     PUBMED_SUMMARY = 'pubmed_summary',
     SUMMARY = 'summary',
     CHAT_SESSION = 'chat_session',
+    UNIPROT_SUMMARY = 'uniprot_summary',
+    ALPHAFOLD_VIEWER = 'alphafold_viewer',
 }
 
 export interface ContentBlock {
