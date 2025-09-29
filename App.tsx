@@ -30,13 +30,21 @@ export const useAppContext = () => {
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     const session = localStorage.getItem('userSession');
-    if (!session) return false;
-    try {
-        const { expiresAt } = JSON.parse(session);
-        return Date.now() < expiresAt;
-    } catch (e) {
-        return false;
+    if (session) {
+        try {
+            const parsedSession = JSON.parse(session);
+            // Check for a valid, unexpired session
+            if (parsedSession && parsedSession.expiresAt && Date.now() < parsedSession.expiresAt) {
+                return true;
+            }
+        } catch (e) {
+            // If session is corrupted, remove it
+            localStorage.removeItem('userSession');
+            return false;
+        }
     }
+    // No session or invalid/expired session
+    return false;
   });
 
   const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -204,7 +212,8 @@ const App: React.FC = () => {
               }
             }
           } catch (e) {
-            console.error(`Could not parse chat history for key: ${key}`, e);
+            // FIX: Replaced template literal with string concatenation to resolve a potential type inference issue.
+            console.error('Could not parse chat history for key: ' + key, e);
           }
         }
       }
