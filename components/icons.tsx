@@ -64,6 +64,7 @@ export const PrinterIcon: React.FC<{ className?: string }> = ({ className = "w-4
 export const ReplyIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => ( <IconWrapper className={className}><path d="M9 10l-5 5 5 5" /><path d="M20 18v-4a4 4 0 0 0-4-4H4" /></IconWrapper> );
 export const SearchIcon: React.FC<{ className?: string }> = ({ className = "w-5 h-5" }) => ( <IconWrapper className={className}><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></IconWrapper> );
 export const FilePlusIcon: React.FC<{ className?: string }> = ({ className = "w-5 h-5" }) => ( <IconWrapper className={className}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></IconWrapper> );
+export const LinkIcon: React.FC<{ className?: string }> = ({ className = "w-5 h-5" }) => ( <IconWrapper className={className}><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.72"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.72-1.72"></path></IconWrapper> );
 
 
 // --- FAQ Illustrations ---
