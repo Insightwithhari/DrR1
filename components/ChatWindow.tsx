@@ -34,10 +34,10 @@ const ChatWelcome: React.FC<{ onPromptClick: (prompt: string) => void; }> = ({ o
     const { userName } = useAppContext();
 
     const suggestions = [
-      { title: "Visualize the COVID-19 Spike Protein", prompt: "Show me 6M0J", icon: <RhesusIcon className="w-5 h-5" /> },
-      { title: "Summarize recent papers on CRISPR-Cas9", prompt: "Summarize recent papers on CRISPR-Cas9", icon: <DocumentTextIcon className="w-5 h-5"/>},
+      { title: "View AlphaFold prediction for human Insulin", prompt: "show me the alphafold structure for human insulin P01308", icon: <RhesusIcon className="w-5 h-5" /> },
+      { title: "Get info on human ACE2 protein", prompt: "get uniprot summary for Q9BYF1", icon: <DocumentTextIcon className="w-5 h-5"/>},
       { title: "Run a BLAST search for human insulin", prompt: "Run a BLAST search for human insulin", icon: <ChatBubbleIcon className="w-5 h-5"/> },
-      { title: "Explain the mechanism of PCR", prompt: "Explain the mechanism of PCR in simple terms", icon: <RhesusIcon className="w-5 h-5"/> }
+      { title: "Summarize recent papers on CRISPR-Cas9", prompt: "Summarize recent papers on CRISPR-Cas9", icon: <DocumentTextIcon className="w-5 h-5"/> }
     ];
 
     return (
