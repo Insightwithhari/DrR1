@@ -47,11 +47,8 @@ export async function sendMessageWithSearch(message: string): Promise<GenerateCo
 }
 
 
-// --- EMBL-EBI BLAST Service ---
-// NOTE: A CORS proxy is used for client-side API calls to EMBL-EBI.
-const PROXY_URL = 'https://thingproxy.freeboard.io/fetch/';
-const EBI_API_URL = 'https://www.ebi.ac.uk/Tools/services/rest/ncbiblast';
-const EMAIL = 'test@example.com'; // A generic email is required by the API.
+// --- EMBL-EBI BLAST Service via Local API Proxy ---
+const BLAST_API_ENDPOINT = '/api/blast'; // Our own backend proxy
 
 interface SubmitBlastJobParams {
   program: 'blastp'; // For now, only protein blast
@@ -60,42 +57,54 @@ interface SubmitBlastJobParams {
 }
 
 export async function submitBlastJob({ program, database, sequence }: SubmitBlastJobParams): Promise<string> {
-  const formData = new FormData();
-  formData.append('email', EMAIL);
-  formData.append('program', program);
-  formData.append('stype', 'protein'); // Specify sequence type
-  formData.append('database', database);
-  formData.append('sequence', sequence);
-
-  const response = await fetch(`${PROXY_URL}${EBI_API_URL}/run`, {
+  const response = await fetch(`${BLAST_API_ENDPOINT}?action=run`, {
     method: 'POST',
-    body: formData,
-    headers: { 'Accept': 'text/plain' }
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ program, database, sequence }),
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to submit BLAST job: ${errorText}`);
+    const errorData = await response.json().catch(() => ({ error: 'Failed to submit BLAST job. The server returned an invalid response.' }));
+    throw new Error(errorData.error);
   }
 
-  return await response.text();
+  const data = await response.json();
+  if (!data.jobId) {
+      throw new Error("Server response did not include a BLAST Job ID.");
+  }
+  return data.jobId;
 }
 
 export async function checkJobStatus(jobId: string): Promise<string> {
-  const response = await fetch(`${PROXY_URL}${EBI_API_URL}/status/${jobId}`);
-  if (!response.ok) throw new Error(`Failed to check job status. Server responded with ${response.status}`);
-  return await response.text();
+  const response = await fetch(`${BLAST_API_ENDPOINT}?action=status&jobId=${jobId}`);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: `Failed to check job status. Server responded with ${response.status}` }));
+    throw new Error(errorData.error);
+  }
+  const data = await response.json();
+  return data.status;
 }
 
 export async function getBlastResults(jobId: string): Promise<any> {
-    const response = await fetch(`${PROXY_URL}${EBI_API_URL}/result/${jobId}/json`);
-    if (!response.ok) throw new Error(`Failed to fetch BLAST results. Server responded with ${response.status}`);
+    const response = await fetch(`${BLAST_API_ENDPOINT}?action=result&jobId=${jobId}`);
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: `Failed to fetch BLAST results. Server responded with ${response.status}` }));
+        throw new Error(errorData.error);
+    }
     return await response.json();
 }
 
 export async function summarizeBlastResults(resultsJson: any): Promise<string> {
   try {
-    const topHits = resultsJson.results.hits.slice(0, 5).map((hit: any) => ({
+    // The top hits might be nested differently depending on the result structure
+    const hits = resultsJson?.results?.hits || resultsJson?.hits || [];
+    if (hits.length === 0) {
+        return JSON.stringify({
+            prose: "The BLAST search completed but returned no significant hits."
+        });
+    }
+
+    const topHits = hits.slice(0, 5).map((hit: any) => ({
       description: hit.description,
       evalue: hit.hsps[0].evalue,
       identity: hit.hsps[0].identity,
