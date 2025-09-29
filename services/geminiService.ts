@@ -48,6 +48,8 @@ export async function sendMessageWithSearch(message: string): Promise<GenerateCo
 
 
 // --- EMBL-EBI BLAST Service ---
+// NOTE: A CORS proxy is used for client-side API calls to EMBL-EBI.
+const PROXY_URL = 'https://cors.sh/';
 const EBI_API_URL = 'https://www.ebi.ac.uk/Tools/services/rest/ncbiblast';
 const EMAIL = 'test@example.com'; // A generic email is required by the API.
 
@@ -65,9 +67,6 @@ export async function submitBlastJob({ program, database, sequence }: SubmitBlas
   formData.append('database', database);
   formData.append('sequence', sequence);
 
-  // NOTE: Using a CORS proxy to bypass browser restrictions on calling the EBI API directly.
-  // This is necessary for a client-side only application.
-  const PROXY_URL = 'https://cors-anywhere.herokuapp.com/';
   const response = await fetch(`${PROXY_URL}${EBI_API_URL}/run`, {
     method: 'POST',
     body: formData,
@@ -83,14 +82,12 @@ export async function submitBlastJob({ program, database, sequence }: SubmitBlas
 }
 
 export async function checkJobStatus(jobId: string): Promise<string> {
-  const PROXY_URL = 'https://cors-anywhere.herokuapp.com/';
   const response = await fetch(`${PROXY_URL}${EBI_API_URL}/status/${jobId}`);
   if (!response.ok) throw new Error(`Failed to check job status. Server responded with ${response.status}`);
   return await response.text();
 }
 
 export async function getBlastResults(jobId: string): Promise<any> {
-    const PROXY_URL = 'https://cors-anywhere.herokuapp.com/';
     const response = await fetch(`${PROXY_URL}${EBI_API_URL}/result/${jobId}/json`);
     if (!response.ok) throw new Error(`Failed to fetch BLAST results. Server responded with ${response.status}`);
     return await response.json();
