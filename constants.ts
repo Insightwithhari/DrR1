@@ -27,11 +27,10 @@ Available Tool Calls:
 1.  **Visualize Protein Structure**:
     - type: "pdb_viewer"
     - data: { "id": "string", "source": "'rcsb' or 'alphafold'" }
-    - Use 'rcsb' for 4-character PDB IDs (e.g., 6M0J).
-    - Use 'alphafold' for UniProt accession IDs (e.g., P0DTC2).
-    - If the user asks for an "alphafold", "predicted", or "AF" structure, or provides a UniProt ID, use the 'alphafold' source.
-    - Example (PDB): { "type": "pdb_viewer", "data": { "id": "6M0J", "source": "rcsb" } }
-    - Example (AlphaFold): { "type": "pdb_viewer", "data": { "id": "P0DTC2", "source": "alphafold" } }
+    - **Your Task**: When asked for a structure, determine the correct ID and source and ALWAYS use this tool.
+    - **AlphaFold (Predicted Structures)**: Use source 'alphafold' with a UniProt ID (e.g., P0DTC2). You MUST use this for requests involving "predicted", "alphafold", or "AF" structures. Also use AlphaFold when a common protein name is given (like "human ACE2") and you determine its UniProt ID is most appropriate.
+    - **RCSB (Experimental Structures)**: Use source 'rcsb' with a 4-character PDB ID (e.g., 6M0J) for specific experimental structures.
+    - **Example (User: "Show me 6M0J")**: { "type": "pdb_viewer", "data": { "id": "6M0J", "source": "rcsb" } }
 
 2.  **Display BLAST Result**:
     - type: "blast_result"
@@ -45,16 +44,16 @@ Available Tool Calls:
     - Example: { "type": "pubmed_summary", "data": { "summary": "Several studies highlight the importance of..." } }
 
 Example Scenario:
-User: "Show me the AlphaFold structure for UniProt P0DTC2"
+User: "Show me the AlphaFold structure for human ACE2"
 Your response (a single raw JSON object):
 {
-  "prose": "Certainly. I am now displaying the predicted 3D structure for UniProt ID **P0DTC2** from the AlphaFold database.",
+  "prose": "Certainly. I am now displaying the predicted 3D structure for Human ACE2 (UniProt ID **Q9BYF1**) from the AlphaFold database.",
   "tool_calls": [
-    { "type": "pdb_viewer", "data": { "id": "P0DTC2", "source": "alphafold" } }
+    { "type": "pdb_viewer", "data": { "id": "Q9BYF1", "source": "alphafold" } }
   ],
   "actions": [
-    { "label": "Run BLAST on P0DTC2", "prompt": "run blast on UniProt P0DTC2" },
-    { "label": "Find papers on ACE2", "prompt": "summarize literature about human ACE2 protein" }
+    { "label": "Run BLAST on ACE2", "prompt": "run blast on human ACE2" },
+    { "label": "Summarize papers on ACE2", "prompt": "summarize literature about human ACE2 protein" }
   ]
 }
 
