@@ -96,7 +96,6 @@ export async function getBlastResults(jobId: string): Promise<any> {
 
 export async function summarizeBlastResults(resultsJson: any): Promise<string> {
   try {
-    // The top hits might be nested differently depending on the result structure
     const hits = resultsJson?.results?.hits || resultsJson?.hits || [];
     if (hits.length === 0) {
         return JSON.stringify({
@@ -104,11 +103,20 @@ export async function summarizeBlastResults(resultsJson: any): Promise<string> {
         });
     }
 
-    const topHits = hits.slice(0, 5).map((hit: any) => ({
-      description: hit.description,
-      evalue: hit.hsps[0].evalue,
-      identity: hit.hsps[0].identity,
-    }));
+    const topHits = hits.slice(0, 5).map((hit: any) => {
+      const bestHsp = hit.hsps?.[0]; // Get the first (and usually only) HSP
+      return {
+        description: hit.description,
+        evalue: bestHsp?.hsp_evalue, // Corrected property name from 'evalue'
+        identity: bestHsp?.hsp_identity, // Corrected property name from 'identity'
+      };
+    }).filter((hit: any) => typeof hit.evalue !== 'undefined' && typeof hit.identity !== 'undefined');
+
+    if (topHits.length === 0) {
+        return JSON.stringify({
+            prose: "The BLAST search completed, but there was an issue parsing the top hits for summarization. You can view the full results via the link."
+        });
+    }
 
     const prompt = `Please provide a concise summary of the following top 5 BLAST results for a protein search. Focus on the most significant matches based on E-value and identity.
 
@@ -125,11 +133,23 @@ export async function summarizeBlastResults(resultsJson: any): Promise<string> {
         }
     });
 
-    return response.text;
+    let jsonText = response.text.trim();
+    if (jsonText.startsWith('```json')) {
+        jsonText = jsonText.substring(7, jsonText.length - 3).trim();
+    } else if (jsonText.startsWith('```')) {
+        jsonText = jsonText.substring(3, jsonText.length - 3).trim();
+    }
+    
+    try {
+        JSON.parse(jsonText);
+        return jsonText;
+    } catch (e) {
+        return JSON.stringify({ prose: jsonText });
+    }
   } catch (error: any) {
-    console.error("Error summarizing BLAST results:", error);
-    return JSON.stringify({
-        prose: `I'm sorry, I encountered an error while summarizing the BLAST results: ${error.message || 'An unknown error occurred.'}`,
-    });
+      console.error("Error in summarizeBlastResults:", error);
+      return JSON.stringify({
+          prose: `I'm sorry, I encountered an error while summarizing the BLAST results: ${error.message}`
+      });
   }
 }
