@@ -1,35 +1,23 @@
-import { GoogleGenerativeAI, ChatSession, HarmBlockThreshold, HarmCategory, GenerateContentResponse } from "@google/generative-ai";
+import { GoogleGenAI, Chat, GenerateContentResponse } from "@google/genai";
 import { DR_RHESUS_SYSTEM_INSTRUCTION } from '../constants';
 
-const ai = new GoogleGenerativeAI(process.env.API_KEY);
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-export function createChatSession(): ChatSession {
-  const model = ai.getGenerativeModel({
-    model: 'gemini-1.5-flash',  // Adjusted to existing model; update to 'gemini-2.5-flash' if available in 2025
-    systemInstruction: DR_RHESUS_SYSTEM_INSTRUCTION,
-    generationConfig: {
-      responseMIMEType: 'application/json',
+export function createChatSession(): Chat {
+  const chat = ai.chats.create({
+    model: 'gemini-2.5-flash',
+    config: {
+      systemInstruction: DR_RHESUS_SYSTEM_INSTRUCTION,
+      responseMimeType: 'application/json',
     },
-    safetySettings: [  // Optional: Added basic safety settings to prevent blocking; adjust as needed
-      {
-        category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-        threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-      },
-      {
-        category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-        threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-      },
-      // Add more categories if required
-    ],
   });
-  const chat = model.startChat();
   return chat;
 }
 
-export async function sendMessage(chat: ChatSession, message: string): Promise<string> {
+export async function sendMessage(chat: Chat, message: string): Promise<string> {
   try {
-    const response = await chat.sendMessage(message);  // Corrected: sendMessage takes a string or Content, not an object { message }
-    return response.response.text();
+    const response = await chat.sendMessage({ message });
+    return response.text;
   } catch (error: any) {
     console.error("Error sending message to Gemini:", error);
     // Construct a JSON string representing the error to maintain the expected response format.
@@ -43,12 +31,14 @@ export async function sendMessage(chat: ChatSession, message: string): Promise<s
 
 export async function sendMessageWithSearch(message: string): Promise<GenerateContentResponse> {
   try {
-    const model = ai.getGenerativeModel({
-      model: 'gemini-1.5-flash',  // Adjusted similarly
-      systemInstruction: `You are Dr. Rhesus, an expert bioinformatics research assistant. When asked to perform a BLAST search, use your web search capabilities to find the most relevant and up-to-date information on similar protein sequences. Present the findings in a concise, clear summary. If you find details like protein descriptions, scores, E-values, and sequence identity from your search, include them. Always cite your sources at the end of your response.`,
-      tools: [{ google_search_retrieval: {} }],  // Corrected tool name for Google Search grounding
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: message,
+      config: {
+        tools: [{googleSearch: {}}],
+        systemInstruction: `You are Dr. Rhesus, an expert bioinformatics research assistant. When asked to perform a BLAST search, use your web search capabilities to find the most relevant and up-to-date information on similar protein sequences. Present the findings in a concise, clear summary. If you find details like protein descriptions, scores, E-values, and sequence identity from your search, include them. Always cite your sources at the end of your response.`,
+      },
     });
-    const response = await model.generateContent(message);  // Simplified: generateContent takes content directly; config moved to model
     return response;
   } catch(error) {
      console.error("Error sending message with search to Gemini:", error);
@@ -58,10 +48,10 @@ export async function sendMessageWithSearch(message: string): Promise<GenerateCo
 
 
 // --- EMBL-EBI BLAST Service ---
-// NOTE: A CORS proxy is used for client-side API calls to EMBL-EBI. The API appears correct based on documentation.
-const PROXY_URL = 'https://cors.sh/';
+// NOTE: A CORS proxy is used for client-side API calls to EMBL-EBI.
+const PROXY_URL = 'https://thingproxy.freeboard.io/fetch/';
 const EBI_API_URL = 'https://www.ebi.ac.uk/Tools/services/rest/ncbiblast';
-const EMAIL = 'test@example.com'; // A generic email is required by the API; use a real one for production to comply with terms.
+const EMAIL = 'test@example.com'; // A generic email is required by the API.
 
 interface SubmitBlastJobParams {
   program: 'blastp'; // For now, only protein blast
@@ -117,16 +107,16 @@ export async function summarizeBlastResults(resultsJson: any): Promise<string> {
     ${JSON.stringify(topHits, null, 2)}
     `;
 
-    const model = ai.getGenerativeModel({
-      model: 'gemini-1.5-flash',
-      generationConfig: {
-        responseMIMEType: 'application/json',
-      },
-      systemInstruction: `You are Dr. Rhesus, an expert bioinformatician. Your response must be a valid JSON object with a single key "prose" that contains your summary.`,
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+            systemInstruction: `You are Dr. Rhesus, an expert bioinformatician. Your response must be a valid JSON object with a single key "prose" that contains your summary.`,
+            responseMimeType: 'application/json',
+        }
     });
 
-    const response = await model.generateContent(prompt);
-    return response.response.text();
+    return response.text;
   } catch (error: any) {
     console.error("Error summarizing BLAST results:", error);
     return JSON.stringify({
