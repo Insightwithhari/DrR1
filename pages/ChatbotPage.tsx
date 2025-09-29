@@ -18,6 +18,46 @@ const Caption: React.FC<{ text: string }> = ({ text }) => (
     <p className="text-xs text-center font-semibold text-[var(--muted-foreground-color)] mb-2 uppercase tracking-wider">{text}</p>
 );
 
+/**
+ * A robust function to find and parse a JSON object from a string.
+ * It handles markdown code blocks, surrounding text, and clean JSON.
+ */
+const extractJsonFromString = (text: string): AiResponse | null => {
+  // 1. Try to find a JSON markdown block (e.g., ```json\n{...}\n```)
+  const markdownMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
+  if (markdownMatch && markdownMatch[1]) {
+    try {
+      return JSON.parse(markdownMatch[1]);
+    } catch (e) {
+      console.warn('Could not parse JSON from markdown block:', e);
+      // Fallthrough to try other methods
+    }
+  }
+
+  // 2. Try to find the main JSON object if there's surrounding text
+  const firstBraceIndex = text.indexOf('{');
+  const lastBraceIndex = text.lastIndexOf('}');
+  if (firstBraceIndex !== -1 && lastBraceIndex > firstBraceIndex) {
+    const jsonString = text.substring(firstBraceIndex, lastBraceIndex + 1);
+    try {
+      return JSON.parse(jsonString);
+    } catch (e) {
+      console.warn('Could not parse JSON from substring:', e);
+      // Fallthrough
+    }
+  }
+
+  // 3. Try to parse the whole string as a last resort (for clean JSON responses)
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    // This is the final failure point
+  }
+
+  return null;
+};
+
+
 const ChatbotPage: React.FC = () => {
   const { 
       projects, setProjects, pipelines, setApiStatus, 
@@ -86,23 +126,7 @@ const ChatbotPage: React.FC = () => {
   }, []);
 
   const parseAndRenderResponse = useCallback((rawContent: string) => {
-    let response: AiResponse | null = null;
-
-    try {
-        // First, try a direct parse, assuming the response is clean JSON.
-        response = JSON.parse(rawContent);
-    } catch (e) {
-        // If direct parsing fails, search for a JSON object within the string.
-        // This handles cases where the AI wraps the JSON in markdown or adds extra text.
-        const jsonMatch = rawContent.match(/{[\s\S]*?}/);
-        if (jsonMatch) {
-            try {
-                response = JSON.parse(jsonMatch[0]);
-            } catch (jsonError) {
-                console.error("Found a JSON-like object, but it was invalid:", jsonError);
-            }
-        }
-    }
+    const response = extractJsonFromString(rawContent);
 
     // If no valid JSON could be extracted, render the raw content as a fallback.
     if (!response) {
@@ -253,8 +277,8 @@ const ChatbotPage: React.FC = () => {
 
           let actions: any[] = [];
           try {
-              const parsed: AiResponse = JSON.parse(fullResponse);
-              actions = parsed.actions || [];
+              const parsed: AiResponse | null = extractJsonFromString(fullResponse);
+              actions = parsed?.actions || [];
           } catch (e) { /* Ignore if not valid JSON */ }
 
           const rhesusMessage: Message = {
