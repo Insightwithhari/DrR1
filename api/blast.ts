@@ -3,19 +3,6 @@
 
 const EBI_API_URL = 'https://www.ebi.ac.uk/Tools/services/rest/ncbiblast';
 
-// Helper to parse the request body if it's not pre-parsed by the environment
-async function getBody(request: any) {
-    if (request.body) {
-        return typeof request.body === 'string' ? JSON.parse(request.body) : request.body;
-    }
-    const chunks: any[] = [];
-    for await (const chunk of request) {
-        chunks.push(chunk);
-    }
-    return JSON.parse(Buffer.concat(chunks).toString());
-}
-
-
 export default async function handler(request: any, response: any) {
     // Set CORS headers for the response to allow our frontend to call this API
     response.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -32,14 +19,24 @@ export default async function handler(request: any, response: any) {
         return;
     }
 
-    const url = new URL(request.url, `http://${request.headers.host}`);
+    // In Vercel, the full URL is not always in request.url, so we build it.
+    const host = request.headers.host || 'localhost';
+    const protocol = host.startsWith('localhost') ? 'http' : 'https';
+    const fullUrl = `${protocol}://${host}${request.url}`;
+    
+    const url = new URL(fullUrl);
     const { searchParams } = url;
     const action = searchParams.get('action');
     const jobId = searchParams.get('jobId');
 
     try {
         if (request.method === 'POST' && action === 'run') {
-            const body = await getBody(request);
+            // Vercel pre-parses the body for JSON content-types. This is more reliable.
+            const body = request.body;
+            if (!body) {
+                return response.status(400).json({ error: 'Request body is missing.' });
+            }
+            
             const { program, database, sequence } = body;
             
             // EBI API expects form data
